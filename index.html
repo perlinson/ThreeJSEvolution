@@ -160,6 +160,11 @@
             box-shadow: 0 0 20px #ff6b6b;
         }
 
+        .timeline-item.animation::before {
+            background: #aa66ff;
+            box-shadow: 0 0 20px #aa66ff;
+        }
+
         .timeline-item.future::before {
             background: #666;
             box-shadow: none;
@@ -203,6 +208,11 @@
         .mutation-tag.pending {
             background: rgba(255,170,0,0.2);
             color: #ffaa00;
+        }
+
+        .mutation-tag.animation {
+            background: rgba(170,102,255,0.2);
+            color: #aa66ff;
         }
 
         .mutation-tag.future {
@@ -249,6 +259,10 @@
 
         .demo-card.physics {
             border-left: 4px solid #ff6b6b;
+        }
+
+        .demo-card.animation {
+            border-left: 4px solid #aa66ff;
         }
 
         .demo-card.future {
@@ -367,11 +381,11 @@
 
         <div class="stats">
             <div class="stat-card">
-                <div class="stat-number" id="mutationCount">4</div>
+                <div class="stat-number" id="mutationCount">5</div>
                 <div class="stat-label">基因突变</div>
             </div>
             <div class="stat-card">
-                <div class="stat-number" id="versionCount">1</div>
+                <div class="stat-number">2</div>
                 <div class="stat-label">引擎版本</div>
             </div>
             <div class="stat-card">
@@ -421,18 +435,20 @@
                 </div>
 
                 <!-- v1_anim -->
-                <div class="timeline-item future">
-                    <div class="timeline-date">2026-02-11</div>
-                    <div class="timeline-title">📋 gen-v1_anim - 动画系统</div>
+                <div class="timeline-item animation">
+                    <div class="timeline-date">2026-02-04</div>
+                    <div class="timeline-title">🎬 gen-v1_anim - 动画系统</div>
                     <div class="timeline-desc">
-                        关键帧动画、骨骼动画、动画混合<br>
-                        <span class="mutation-tag future">📅 计划中</span>
+                        关键帧动画、动画插值、动画混合<br>
+                        <span class="mutation-tag animation">✅ Released</span>
+                        <span class="mutation-tag" style="background: rgba(170,102,255,0.2); color: #aa66ff;">+100% 动画</span>
+                        <a href="skills/threejs/v1_anim/index.html" class="mutation-link">🎬 立即体验 →</a>
                     </div>
                 </div>
 
                 <!-- v2_core -->
                 <div class="timeline-item future">
-                    <div class="timeline-date">2026-02-18</div>
+                    <div class="timeline-date">2026-02-11</div>
                     <div class="timeline-title">📋 gen-v2_core - ECS系统</div>
                     <div class="timeline-desc">
                         实体组件系统 (Entity Component System)<br>
@@ -461,11 +477,11 @@
                     <a href="skills/threejs/v1_phys/index.html" class="demo-btn" target="_blank">🎮 立即体验</a>
                 </div>
 
-                <div class="demo-card future">
+                <div class="demo-card animation">
                     <div class="demo-icon">🎬</div>
-                    <div class="demo-title">v1_anim 动画系统</div>
-                    <div class="demo-desc">关键帧动画、骨骼动画、动画混合（计划中）</div>
-                    <a href="#" class="demo-btn disabled">⏳ 待开发</a>
+                    <div class="demo-title">v1_anim 动画系统 ⭐</div>
+                    <div class="demo-desc">关键帧动画、动画插值、4种内置动画。点击按钮播放！</div>
+                    <a href="skills/threejs/v1_anim/index.html" class="demo-btn" target="_blank">🎬 立即体验</a>
                 </div>
             </div>
         </div>
@@ -521,12 +537,12 @@
                 <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px; text-align: center;">
                     <div style="font-size: 24px; margin-bottom: 8px;">⚡</div>
                     <div>Physics</div>
-                    <div style="font-size: 12px; color: #888;">Cannon.js</div>
+                    <div style="font-size: 12px; color: #888;">Cannon.js ✅</div>
                 </div>
                 <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px; text-align: center;">
                     <div style="font-size: 24px; margin-bottom: 8px;">🎬</div>
                     <div>Animation</div>
-                    <div style="font-size: 12px; color: #888;">Keyframe, Skinned</div>
+                    <div style="font-size: 12px; color: #888;">Keyframe ✅</div>
                 </div>
                 <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px; text-align: center;">
                     <div style="font-size: 24px; margin-bottom: 8px;">🖱️</div>
@@ -597,9 +613,9 @@
         });
 
         console.log('🦞 ThreeJSEvolution Engine Loaded');
-        console.log('📊 Version: 1.0.0 (v1_phys)');
+        console.log('📊 Version: 2.0.0 (v1_phys + v1_anim)');
         console.log('🎯 Target: Complete Game Engine');
-        console.log('🧬 Mutations: 4 registered');
+        console.log('🧬 Mutations: 5 registered');
     </script>
 </body>
 </html>
