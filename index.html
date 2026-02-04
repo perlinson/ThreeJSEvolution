@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🦞 OpenClaw Evolution Registry - Three.js 进化系统</title>
+    <title>🦞 OpenClaw Evolution Registry - Three.js 游戏引擎</title>
     <style>
         * {
             margin: 0;
@@ -108,56 +108,96 @@
             margin-bottom: 40px;
         }
 
-        .mutation {
-            display: flex;
-            align-items: flex-start;
+        .timeline {
+            position: relative;
+            padding-left: 30px;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: linear-gradient(180deg, #00ff88, #00ccff, #ff00ff);
+            border-radius: 2px;
+        }
+
+        .timeline-item {
+            position: relative;
             padding: 20px;
-            margin-bottom: 15px;
+            margin-bottom: 20px;
             background: rgba(255,255,255,0.03);
             border-radius: 12px;
-            border-left: 4px solid #00ff88;
             transition: all 0.3s;
         }
 
-        .mutation:hover {
+        .timeline-item:hover {
             background: rgba(255,255,255,0.05);
             transform: translateX(10px);
         }
 
-        .mutation.pending {
-            border-left-color: #ffaa00;
-            opacity: 0.7;
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -39px;
+            top: 25px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #00ff88;
+            box-shadow: 0 0 20px #00ff88;
         }
 
-        .mutation-version {
-            font-size: 24px;
-            font-weight: bold;
-            min-width: 180px;
-            color: #00ff88;
+        .timeline-item.pending::before {
+            background: #ffaa00;
+            box-shadow: 0 0 20px #ffaa00;
         }
 
-        .mutation-info {
-            flex: 1;
+        .timeline-item.physics::before {
+            background: #ff6b6b;
+            box-shadow: 0 0 20px #ff6b6b;
         }
 
-        .mutation-title {
-            font-size: 18px;
+        .timeline-item.future::before {
+            background: #666;
+            box-shadow: none;
+        }
+
+        .timeline-item.future {
+            opacity: 0.6;
+        }
+
+        .timeline-date {
+            color: #888;
+            font-size: 14px;
             margin-bottom: 8px;
         }
 
-        .mutation-meta {
-            display: flex;
-            gap: 20px;
-            color: #888;
-            font-size: 14px;
+        .timeline-title {
+            font-size: 20px;
+            margin-bottom: 10px;
+            color: #fff;
+        }
+
+        .timeline-desc {
+            color: #aaa;
+            line-height: 1.8;
         }
 
         .mutation-tag {
-            background: rgba(0,255,136,0.2);
-            color: #00ff88;
+            display: inline-block;
             padding: 4px 12px;
             border-radius: 20px;
             font-size: 12px;
+            margin-right: 8px;
+            margin-top: 8px;
+        }
+
+        .mutation-tag.approved {
+            background: rgba(0,255,136,0.2);
+            color: #00ff88;
         }
 
         .mutation-tag.pending {
@@ -165,9 +205,20 @@
             color: #ffaa00;
         }
 
-        .mutation-tag.approved {
-            background: rgba(0,255,136,0.2);
-            color: #00ff88;
+        .mutation-tag.future {
+            background: rgba(102,102,102,0.3);
+            color: #888;
+        }
+
+        .mutation-link {
+            color: #00ccff;
+            text-decoration: none;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+
+        .mutation-link:hover {
+            text-decoration: underline;
         }
 
         .demo-section {
@@ -187,11 +238,22 @@
             padding: 25px;
             transition: all 0.3s;
             cursor: pointer;
+            border: 1px solid rgba(255,255,255,0.1);
         }
 
         .demo-card:hover {
             transform: translateY(-5px);
             box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+            border-color: #00ff88;
+        }
+
+        .demo-card.physics {
+            border-left: 4px solid #ff6b6b;
+        }
+
+        .demo-card.future {
+            border-left: 4px solid #666;
+            opacity: 0.6;
         }
 
         .demo-icon {
@@ -207,6 +269,7 @@
         .demo-desc {
             color: #888;
             margin-bottom: 15px;
+            font-size: 14px;
         }
 
         .demo-btn {
@@ -225,40 +288,53 @@
             box-shadow: 0 10px 30px rgba(0,255,136,0.3);
         }
 
-        .code-section {
+        .demo-btn.disabled {
+            background: #444;
+            color: #888;
+            cursor: not-allowed;
+        }
+
+        .roadmap {
             margin-top: 60px;
             padding: 40px;
             background: rgba(0,0,0,0.3);
             border-radius: 20px;
         }
 
-        .code-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+        .roadmap h3 {
+            color: #00ff88;
             margin-bottom: 20px;
         }
 
-        .code-title {
-            font-size: 24px;
+        .phase-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
         }
 
-        .code-badge {
-            background: #ff0055;
-            color: #fff;
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-size: 14px;
-        }
-
-        pre {
-            background: rgba(0,0,0,0.5);
+        .phase {
+            background: rgba(255,255,255,0.05);
             padding: 20px;
             border-radius: 12px;
-            overflow-x: auto;
-            color: #00ff88;
-            font-family: 'Fira Code', 'Consolas', monospace;
-            font-size: 14px;
+            text-align: center;
+        }
+
+        .phase-number {
+            font-size: 32px;
+            font-weight: bold;
+            color: #00ccff;
+            margin-bottom: 10px;
+        }
+
+        .phase-name {
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+
+        .phase-desc {
+            font-size: 12px;
+            color: #888;
         }
 
         .footer {
@@ -274,85 +350,33 @@
             text-decoration: none;
         }
 
-        .timeline {
-            position: relative;
-            padding-left: 30px;
-        }
-
-        .timeline::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 0;
-            bottom: 0;
-            width: 2px;
-            background: linear-gradient(180deg, #00ff88, #00ccff, #ff00ff);
-        }
-
-        .timeline-item {
-            position: relative;
-            margin-bottom: 30px;
-        }
-
-        .timeline-item::before {
-            content: '';
-            position: absolute;
-            left: -34px;
-            top: 5px;
-            width: 12px;
-            height: 12px;
-            background: #00ff88;
-            border-radius: 50%;
-            box-shadow: 0 0 20px #00ff88;
-        }
-
-        .timeline-item.pending::before {
-            background: #ffaa00;
-            box-shadow: 0 0 20px #ffaa00;
-        }
-
-        .timeline-date {
-            color: #888;
-            font-size: 14px;
-            margin-bottom: 5px;
-        }
-
-        .timeline-title {
-            font-size: 18px;
-            margin-bottom: 5px;
-        }
-
-        .timeline-desc {
-            color: #aaa;
-        }
-
         @media (max-width: 768px) {
             h1 { font-size: 32px; }
             .stats { flex-direction: column; gap: 15px; }
-            .mutation { flex-direction: column; }
+            .phase-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
 <body>
     <!-- Hero Section -->
     <div class="hero">
-        <div class="logo">🦞</div>
-        <h1>OpenClaw Evolution Registry</h1>
-        <p class="subtitle">Three.js 能力进化系统</p>
-        <p class="tagline">🧬 代码即基因，Git即族谱</p>
+        <div class="logo">🎮</div>
+        <h1>ThreeJSEvolution Engine</h1>
+        <p class="subtitle">AI 驱动的 Three.js 游戏引擎</p>
+        <p class="tagline">🧬 代码即基因，Git即族谱 | 从演示到完整游戏引擎</p>
 
         <div class="stats">
             <div class="stat-card">
-                <div class="stat-number" id="mutationCount">2</div>
+                <div class="stat-number" id="mutationCount">4</div>
                 <div class="stat-label">基因突变</div>
             </div>
             <div class="stat-card">
-                <div class="stat-number" id="featureCount">8</div>
-                <div class="stat-label">新功能</div>
+                <div class="stat-number" id="versionCount">1</div>
+                <div class="stat-label">引擎版本</div>
             </div>
             <div class="stat-card">
-                <div class="stat-number" id="versionCount">1</div>
-                <div class="stat-label">大版本</div>
+                <div class="stat-number">8</div>
+                <div class="stat-label">计划模块</div>
             </div>
         </div>
     </div>
@@ -369,7 +393,7 @@
                     <div class="timeline-title">✅ gen-v1-base - 初始基因</div>
                     <div class="timeline-desc">
                         Three.js 基础场景、相机、几何体、光照系统<br>
-                        <span class="mutation-tag approved">Approved</span>
+                        <span class="mutation-tag approved">✅ Released</span>
                     </div>
                 </div>
 
@@ -379,8 +403,40 @@
                     <div class="timeline-title">⏳ gen-v1-opt-mouse-v1 - 鼠标交互</div>
                     <div class="timeline-desc">
                         Raycaster 鼠标拾取、悬停高亮、点击动画<br>
-                        <span class="mutation-tag pending">Pending Review</span>
+                        <span class="mutation-tag pending">⏳ Review</span>
                         <span class="mutation-tag" style="background: rgba(0,204,255,0.2); color: #00ccff;">+25% UX</span>
+                    </div>
+                </div>
+
+                <!-- v1_phys -->
+                <div class="timeline-item physics">
+                    <div class="timeline-date">2026-02-04</div>
+                    <div class="timeline-title">🎮 gen-v1_phys - 物理引擎</div>
+                    <div class="timeline-desc">
+                        Cannon.js 物理引擎：重力、碰撞、刚体动力学<br>
+                        <span class="mutation-tag approved">✅ Released</span>
+                        <span class="mutation-tag" style="background: rgba(255,107,107,0.2); color: #ff6b6b;">+50% 能力</span>
+                        <a href="skills/threejs/v1_phys/index.html" class="mutation-link">🎮 立即体验 →</a>
+                    </div>
+                </div>
+
+                <!-- v1_anim -->
+                <div class="timeline-item future">
+                    <div class="timeline-date">2026-02-11</div>
+                    <div class="timeline-title">📋 gen-v1_anim - 动画系统</div>
+                    <div class="timeline-desc">
+                        关键帧动画、骨骼动画、动画混合<br>
+                        <span class="mutation-tag future">📅 计划中</span>
+                    </div>
+                </div>
+
+                <!-- v2_core -->
+                <div class="timeline-item future">
+                    <div class="timeline-date">2026-02-18</div>
+                    <div class="timeline-title">📋 gen-v2_core - ECS系统</div>
+                    <div class="timeline-desc">
+                        实体组件系统 (Entity Component System)<br>
+                        <span class="mutation-tag future">📅 计划中</span>
                     </div>
                 </div>
             </div>
@@ -398,88 +454,140 @@
                     <a href="skills/threejs/v1_base/index.html" class="demo-btn" target="_blank">🚀 立即体验</a>
                 </div>
 
-                <div class="demo-card">
-                    <div class="demo-icon">🖱️</div>
-                    <div class="demo-title">v1_opt 交互版</div>
-                    <div class="demo-desc">添加鼠标交互功能，支持悬停高亮和点击效果</div>
-                    <a href="#" class="demo-btn" style="background: #888; cursor: not-allowed;">⏳ 待部署</a>
+                <div class="demo-card physics">
+                    <div class="demo-icon">⚡</div>
+                    <div class="demo-title">v1_phys 物理引擎 ⭐</div>
+                    <div class="demo-desc">集成 Cannon.js，重力、碰撞、刚体动力学。点击生成物体，空格跳跃！</div>
+                    <a href="skills/threejs/v1_phys/index.html" class="demo-btn" target="_blank">🎮 立即体验</a>
                 </div>
 
-                <div class="demo-card">
-                    <div class="demo-icon">⚡</div>
-                    <div class="demo-title">下一版本预告</div>
-                    <div class="demo-desc">物理引擎 Cannon.js，更真实的碰撞和重力效果</div>
-                    <a href="#" class="demo-btn" style="background: transparent; border: 2px solid #00ff88;">📋 查看路线图</a>
+                <div class="demo-card future">
+                    <div class="demo-icon">🎬</div>
+                    <div class="demo-title">v1_anim 动画系统</div>
+                    <div class="demo-desc">关键帧动画、骨骼动画、动画混合（计划中）</div>
+                    <a href="#" class="demo-btn disabled">⏳ 待开发</a>
                 </div>
             </div>
         </div>
 
-        <!-- Mutation Example -->
-        <div class="code-section">
-            <div class="code-header">
-                <span class="code-title">📋 最新 Mutation 示例</span>
-                <span class="code-badge">gen-v1-opt-mouse-v1</span>
-            </div>
+        <!-- Roadmap -->
+        <div class="roadmap">
+            <h3>🚀 进化路线图 Evolution Roadmap</h3>
+            <p style="color: #888; margin-bottom: 20px;">从基础演示到完整游戏引擎的进化路径</p>
 
-            <pre id="mutationCode">
-{
-  "mutation_id": "gen-v1-opt-mouse-v1",
-  "parent_id": "gen-v1-base",
-  "agent_id": "xiaobao-01",
-  "target_skill": "threejs-game",
-  "change_type": "feature_addition",
-  "performance_delta": "+25% UX",
-  "diff_url": "patches/gen-v1-opt-mouse-v1.patch",
-  "description": "添加鼠标交互功能",
-  "experiment_results": {
-    "success_rate": "100%",
-    "hypothesis": "交互能提升用户体验"
-  }
-}</pre>
+            <div class="phase-grid">
+                <div class="phase">
+                    <div class="phase-number">G1</div>
+                    <div class="phase-name">Phase 1</div>
+                    <div class="phase-desc">基础引擎<br>场景、交互、物理</div>
+                </div>
+                <div class="phase">
+                    <div class="phase-number">G2</div>
+                    <div class="phase-name">Phase 2</div>
+                    <div class="phase-desc">核心系统<br>ECS、场景管理</div>
+                </div>
+                <div class="phase">
+                    <div class="phase-number">G3</div>
+                    <div class="phase-name">Phase 3</div>
+                    <div class="phase-desc">高级功能<br>AI、UI、音频</div>
+                </div>
+                <div class="phase">
+                    <div class="phase-number">G4</div>
+                    <div class="phase-name">Phase 4</div>
+                    <div class="phase-desc">工具链<br>编辑器、AI辅助</div>
+                </div>
+                <div class="phase">
+                    <div class="phase-number">G5</div>
+                    <div class="phase-name">Phase 5</div>
+                    <div class="phase-desc">完整引擎<br>Unity 级别功能</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Architecture -->
+        <div style="margin-top: 60px; padding: 40px; background: rgba(0,255,136,0.05); border-radius: 20px;">
+            <h3 style="color: #00ff88; margin-bottom: 20px;">🏗️ 引擎架构 Engine Architecture</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
+                <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 24px; margin-bottom: 8px;">🎯</div>
+                    <div>Core System</div>
+                    <div style="font-size: 12px; color: #888;">Game Loop, ECS</div>
+                </div>
+                <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 24px; margin-bottom: 8px;">🎨</div>
+                    <div>Rendering</div>
+                    <div style="font-size: 12px; color: #888;">Renderer, Camera</div>
+                </div>
+                <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 24px; margin-bottom: 8px;">⚡</div>
+                    <div>Physics</div>
+                    <div style="font-size: 12px; color: #888;">Cannon.js</div>
+                </div>
+                <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 24px; margin-bottom: 8px;">🎬</div>
+                    <div>Animation</div>
+                    <div style="font-size: 12px; color: #888;">Keyframe, Skinned</div>
+                </div>
+                <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 24px; margin-bottom: 8px;">🖱️</div>
+                    <div>Input</div>
+                    <div style="font-size: 12px; color: #888;">Keyboard, Mouse</div>
+                </div>
+                <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 24px; margin-bottom: 8px;">🔊</div>
+                    <div>Audio</div>
+                    <div style="font-size: 12px; color: #888;">3D Spatial</div>
+                </div>
+                <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 24px; margin-bottom: 8px;">🧠</div>
+                    <div>AI</div>
+                    <div style="font-size: 12px; color: #888;">Behavior Tree</div>
+                </div>
+                <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 24px; margin-bottom: 8px;">📱</div>
+                    <div>UI</div>
+                    <div style="font-size: 12px; color: #888;">Canvas, Components</div>
+                </div>
+            </div>
         </div>
 
         <!-- Quick Start -->
         <div style="margin-top: 60px; text-align: center; padding: 40px; background: rgba(0,255,136,0.05); border-radius: 20px;">
-            <h2 style="margin-bottom: 20px;">🚀 快速开始</h2>
-
-            <div style="text-align: left; max-width: 600px; margin: 0 auto;">
-                <p style="margin-bottom: 15px; color: #ccc;">
-                    <strong style="color: #00ff88;">1.</strong> 克隆仓库到本地
+            <h3 style="color: #00ff88; margin-bottom: 20px;">🚀 快速开始 Quick Start</h3>
+            <div style="text-align: left; max-width: 500px; margin: 0 auto; background: rgba(0,0,0,0.3); padding: 20px; border-radius: 12px;">
+                <p style="color: #ccc; margin-bottom: 10px;">
+                    <strong style="color: #00ff88;">1.</strong> 克隆仓库
                 </p>
-                <pre style="margin-bottom: 20px;">git clone https://github.com/你的用户名/ThreeJSEvolution.git</pre>
+                <pre style="background: transparent; color: #00ff88; margin-bottom: 15px;">git clone https://github.com/perlinson/ThreeJSEvolution.git</pre>
 
-                <p style="margin-bottom: 15px; color: #ccc;">
-                    <strong style="color: #00ff88;">2.</strong> 创建新分支进行改进
+                <p style="color: #ccc; margin-bottom: 10px;">
+                    <strong style="color: #00ff88;">2.</strong> 进入目录
                 </p>
-                <pre style="margin-bottom: 20px;">git checkout -b feature/物理引擎</pre>
+                <pre style="background: transparent; color: #00ff88; margin-bottom: 15px;">cd ThreeJSEvolution/skills/threejs/v1_phys</pre>
 
-                <p style="margin-bottom: 15px; color: #ccc;">
-                    <strong style="color: #00ff88;">3.</strong> 提交 Mutation
+                <p style="color: #ccc; margin-bottom: 10px;">
+                    <strong style="color: #00ff88;">3.</strong> 浏览器打开
                 </p>
-                <pre style="margin-bottom: 20px;">python3 scripts/evolution_tracker.py log ...</pre>
-
-                <p style="margin-bottom: 15px; color: #ccc;">
-                    <strong style="color: #00ff88;">4.</strong> 发起 Pull Request
-                </p>
+                <pre style="background: transparent; color: #00ff88;">open index.html</pre>
             </div>
         </div>
     </div>
 
     <!-- Footer -->
     <div class="footer">
-        <p>🦞 OpenClaw Evolution Registry</p>
-        <p style="margin-top: 10px;">
-            <a href="#">GitHub</a> ·
-            <a href="#">文档</a> ·
-            <a href="#">进化日志</a>
+        <p style="font-size: 24px; margin-bottom: 10px;">🎮 ThreeJSEvolution Engine</p>
+        <p style="color: #888;">AI 驱动的 Three.js 游戏引擎 | 让游戏开发更简单</p>
+        <p style="margin-top: 20px;">
+            <a href="https://github.com/perlinson/ThreeJSEvolution">GitHub</a> ·
+            <a href="skills/threejs/ENGINE_ARCHITECTURE.md">架构文档</a> ·
+            <a href="mutations/">进化日志</a>
         </p>
-        <p style="margin-top: 20px; font-size: 14px;">
+        <p style="margin-top: 20px; font-size: 14px; color: #666;">
             自动部署于 <span id="deployTime"></span>
         </p>
     </div>
 
     <script>
-        // 更新时间戳
         document.getElementById('deployTime').textContent = new Date().toLocaleString('zh-CN', {
             year: 'numeric',
             month: '2-digit',
@@ -488,19 +596,10 @@
             minute: '2-digit'
         });
 
-        // 动画效果
-        document.querySelectorAll('.mutation, .demo-card').forEach(el => {
-            el.addEventListener('mouseenter', () => {
-                el.style.transform = 'translateX(5px)';
-            });
-            el.addEventListener('mouseleave', () => {
-                el.style.transform = '';
-            });
-        });
-
-        console.log('🦞 OpenClaw Evolution System Loaded');
-        console.log('📊 Version: 1.0.0');
-        console.log('🎯 Target: Three.js Game Development');
+        console.log('🦞 ThreeJSEvolution Engine Loaded');
+        console.log('📊 Version: 1.0.0 (v1_phys)');
+        console.log('🎯 Target: Complete Game Engine');
+        console.log('🧬 Mutations: 4 registered');
     </script>
 </body>
 </html>

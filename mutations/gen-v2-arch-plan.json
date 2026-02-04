@@ -1,0 +1,52 @@
+{
+  "mutation_id": "gen-v2-arch-plan",
+  "parent_id": "gen-v1-opt-mouse-v1",
+  "agent_id": "xiaobao-01",
+  "target_skill": "threejs-engine",
+  "change_type": "breakthrough",
+  "timestamp": "2026-02-04T14:55:00.000Z",
+  "performance_delta": "+1000% capability",
+  "diff_url": "skills/threejs/ENGINE_ARCHITECTURE.md",
+  "description": "ThreeJSEvolution 游戏引擎架构规划 - 从演示到完整游戏引擎",
+  "changelog": [
+    "设计完整的游戏引擎架构",
+    "定义 8 大核心模块：Core, Rendering, Physics, Input, Animation, Audio, UI, AI",
+    "设计 AI 辅助开发流程：自然语言 → 代码生成 → 自动集成",
+    "制定 10 版本进化路线图",
+    "明确每个阶段的目标和里程碑"
+  ],
+  "metrics": {
+    "code_lines": 0,
+    "complexity": "★★★★★",
+    "modules_planned": 8,
+    "versions_planned": 10,
+    "features_mapped": 50+
+  },
+  "architecture": {
+    "modules": [
+      "Core System (Game Loop, ECS, Scene Manager)",
+      "Rendering System (Renderer, Camera, Lighting)",
+      "Physics System (Collision, RigidBody, Triggers)",
+      "Input System (Keyboard, Mouse, Touch, Gamepad)",
+      "Animation System (Keyframe, Skinned)",
+      "Audio System (2D, 3D, Spatial)",
+      "UI System (Canvas, Components, Layout)",
+      "AI System (BehaviorTree, StateMachine, NavMesh)"
+    ],
+    "ai_features": [
+      "Natural Language → Code Generation",
+      "Auto Component Creation",
+      "Scene Generation from Description",
+      "Code Optimization & Documentation"
+    ]
+  },
+  "evolution_phases": {
+    "phase1": "基础引擎 (G1-G2): 场景、交互、物理",
+    "phase2": "核心系统 (G3-G4): ECS、场景管理、资源加载",
+    "phase3": "高级功能 (G5-G6): AI、UI、音频、寻路",
+    "phase4": "工具链 (G7-G8): 编辑器、AI辅助开发、REPL",
+    "phase5": "完整引擎 (G9-G10): 云协作、市场、终极版本"
+  },
+  "approved": true,
+  "reviewer": "system"
+}

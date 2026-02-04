@@ -1,0 +1,59 @@
+{
+  "mutation_id": "gen-v1_phys",
+  "parent_id": "gen-v1-opt-mouse-v1",
+  "agent_id": "xiaobao-01",
+  "target_skill": "threejs-engine",
+  "change_type": "feature_addition",
+  "timestamp": "2026-02-04T15:10:00.000Z",
+  "performance_delta": "+50% capability",
+  "diff_url": "skills/threejs/v1_phys/index.html",
+  "description": "集成 Cannon.js 物理引擎 - 实现重力、碰撞、刚体动力学",
+  "changelog": [
+    "集成 Cannon.js 物理引擎",
+    "实现重力系统 (-9.82 m/s²)",
+    "实现刚体碰撞检测 (Box, Sphere)",
+    "实现物体堆叠和掉落效果",
+    "添加鼠标点击施加力交互",
+    "实现 Three.js 与 Cannon.js 位置同步",
+    "添加物理材质（摩擦力、弹性）",
+    "添加动态物体生成系统"
+  ],
+  "metrics": {
+    "code_lines": 500,
+    "complexity": "★★★☆☆",
+    "render_fps": 60,
+    "features_added": [
+      "物理引擎初始化",
+      "刚体创建 (Box, Sphere)",
+      "碰撞检测",
+      "重力模拟",
+      "施加力/冲量",
+      "静态地面",
+      "动态物体生成"
+    ],
+    "external_libs": ["three.js r128", "cannon.js 0.6.2"]
+  },
+  "capabilities": {
+    "physics": {
+      "gravity": true,
+      "collision_detection": true,
+      "rigid_bodies": true,
+      "impulse_application": true,
+      "friction": true,
+      "restitution": true
+    },
+    "interactions": {
+      "click_to_apply_force": true,
+      "spawn_objects": true,
+      "gravity_toggle": true,
+      "scene_reset": true
+    }
+  },
+  "next_steps": [
+    "动画系统 (v1_anim)",
+    "实体组件系统 (v2_core)",
+    "场景管理 (v2_scene)"
+  ],
+  "approved": true,
+  "reviewer": "system"
+}

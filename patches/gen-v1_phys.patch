@@ -1,0 +1,30 @@
+diff --git a/skills/threejs/v1_base/index.html b/skills/threejs/v1_phys/index.html
+new file mode 100644
+index 0000000..1234567
+--- /dev/null
++++ b/skills/threejs/v1_phys/index.html
+@@ -0,0 +1,600 @@
++<!DOCTYPE html>
++<html lang="zh-CN">
++<head>
++    <meta charset="UTF-8">
++    <title>🎮 ThreeJSEvolution v1_phys - 物理引擎演示</title>
++    ...
++</head>
++<body>
++    <!-- Three.js + Cannon.js 物理引擎集成 -->
++    <script src="three.min.js"></script>
++    <script src="cannon.min.js"></script>
++    <script>
++        // 物理引擎初始化
++        const world = new CANNON.World();
++        world.gravity.set(0, -9.82, 0);
++
++        // 刚体同步
++        objects.forEach(obj => {
++            obj.mesh.position.copy(obj.body.position);
++            obj.mesh.quaternion.copy(obj.body.quaternion);
++        });
++    </script>
++</body>
++</html>
