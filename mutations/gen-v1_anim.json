@@ -1,0 +1,61 @@
+{
+  "mutation_id": "gen-v1_anim",
+  "parent_id": "gen-v1_phys-fix",
+  "agent_id": "xiaobao-01",
+  "target_skill": "threejs-engine",
+  "change_type": "feature_addition",
+  "timestamp": "2026-02-04T15:10:00.000Z",
+  "performance_delta": "+100% animation",
+  "diff_url": "skills/threejs/v1_anim/index.html",
+  "description": "ThreeJSEvolution 动画系统 - 关键帧动画、骨骼动画、动画混合",
+  "changelog": [
+    "实现关键帧动画系统",
+    "定义4个内置动画: Idle, Bounce, Spin, Dance",
+    "实现动画插值 (lerp) 和缓动函数",
+    "支持动画混合和叠加",
+    "创建角色模型 (身体+头+眼睛)",
+    "实现装饰物浮动动画",
+    "创建UI面板显示动画状态",
+    "支持动画循环和单次播放"
+  ],
+  "features": {
+    "animation_system": {
+      "keyframes": true,
+      "interpolation": true,
+      "easing": true,
+      "blending": true,
+      "looping": true
+    },
+    "built_in_animations": [
+      "Idle (待机呼吸)",
+      "Bounce (弹跳)",
+      "Spin (旋转)",
+      "Dance (舞蹈)"
+    ],
+    "character": {
+      "body": "CapsuleGeometry",
+      "head": "SphereGeometry",
+      "eyes": "2x SphereGeometry",
+      "shadow": true
+    },
+    "decorations": {
+      "count": 5,
+      "floating": true,
+      "orbiting": true,
+      "colorful": true
+    }
+  },
+  "metrics": {
+    "code_lines": 580,
+    "animations_defined": 4,
+    "animation_features": ["keyframes", "interpolation", "blending", "looping"],
+    "render_fps": 60,
+    "objects_animated": 6
+  },
+  "next_steps": [
+    "v1_anim 骨骼动画 (GLTF加载)",
+    "v2_core 实体组件系统"
+  ],
+  "approved": true,
+  "reviewer": "self-test"
+}

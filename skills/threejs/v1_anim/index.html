@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎬 ThreeJSEvolution v1.2 - 动画系统演示</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #0a0a1a;
+            overflow: hidden;
+        }
+        canvas { display: block; }
+        
+        #info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            background: rgba(0,0,0,0.85);
+            padding: 20px;
+            border-radius: 12px;
+            max-width: 320px;
+            z-index: 100;
+            border: 1px solid #00ccff;
+        }
+        #info h3 {
+            color: #00ccff;
+            margin-bottom: 15px;
+        }
+        #info p {
+            color: #ccc;
+            font-size: 13px;
+            line-height: 1.8;
+            margin-bottom: 8px;
+        }
+        
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+            z-index: 100;
+        }
+        .btn {
+            padding: 12px 20px;
+            background: linear-gradient(135deg, #00ccff, #0099cc);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0,204,255,0.4);
+        }
+        .btn-green {
+            background: linear-gradient(135deg, #00ff88, #00cc44);
+        }
+        .btn-purple {
+            background: linear-gradient(135deg, #aa66ff, #8844cc);
+        }
+        
+        #status {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: #00ccff;
+            background: rgba(0,0,0,0.85);
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 13px;
+            z-index: 100;
+        }
+        
+        #animation-panel {
+            position: absolute;
+            top: 20px;
+            right: 200px;
+            background: rgba(0,0,0,0.85);
+            padding: 15px;
+            border-radius: 8px;
+            color: #00ff88;
+            font-family: monospace;
+            font-size: 12px;
+            z-index: 100;
+            border: 1px solid #00ff88;
+            min-width: 180px;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">
+        <h3>🎬 ThreeJSEvolution v1.2</h3>
+        <p><strong>版本:</strong> gen-v1_anim</p>
+        <p><strong>功能:</strong> 动画系统、关键帧、骨骼</p>
+        <hr style="border-color: #333; margin: 10px 0;">
+        <p><strong>操作说明：</strong></p>
+        <p>• 点击按钮触发不同动画</p>
+        <p>• 动画自动混合</p>
+        <p>• 实时性能监控</p>
+    </div>
+
+    <div id="animation-panel">
+        <div>🎭 活动动画: <span id="activeAnim">0</span></div>
+        <div>⏱️ 播放速率: <span id="animSpeed">1.0</span>x</div>
+        <div>📊 混合状态: <span id="blendState">Idle</span></div>
+    </div>
+
+    <div id="status">
+        <div>FPS: <span id="fps">0</span></div>
+        <div>Objects: <span id="objCount">0</span></div>
+    </div>
+
+    <div id="controls">
+        <button class="btn" onclick="playIdle()">💤 待机动画</button>
+        <button class="btn btn-green" onclick="playBounce()">🏀 弹跳动画</button>
+        <button class="btn btn-purple" onclick="playSpin()">🌀 旋转动画</button>
+        <button class="btn" onclick="playDance()">💃 舞蹈动画</button>
+        <button class="btn" onclick="resetAnimation()">🔄 重置</button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <script>
+        // 🎬 ThreeJSEvolution v1.2 - 动画系统
+        
+        console.log('🧬 ThreeJSEvolution v1.2 - 动画系统启动...');
+        
+        const CONFIG = {
+            version: 'gen-v1_anim',
+            animationSpeed: 1.0,
+            blendDuration: 0.3  // 动画混合时间
+        };
+        
+        // 全局变量
+        let scene, camera, renderer, clock;
+        let objects = [];
+        let animations = {};  // 存储动画
+        let activeAnimations = [];
+        let frameCount = 0;
+        let lastFpsTime = 0;
+        
+        // 初始化
+        function init() {
+            console.log('🔧 初始化动画引擎...');
+            
+            // 场景
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0a1a);
+            
+            // 相机
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 3, 8);
+            camera.lookAt(0, 0, 0);
+            
+            // 渲染器
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            document.body.appendChild(renderer.domElement);
+            
+            // 光照
+            addLights();
+            
+            // 地面
+            createGround();
+            
+            // 创建示例物体
+            createDemoObjects();
+            
+            // 初始化动画系统
+            initAnimationSystem();
+            
+            // 时钟
+            clock = new THREE.Clock();
+            
+            // 动画循环
+            animate();
+            
+            // 窗口调整
+            window.addEventListener('resize', onResize);
+            
+            console.log('✅ 动画引擎就绪！');
+        }
+        
+        // 添加光照
+        function addLights() {
+            const ambient = new THREE.AmbientLight(0x404040, 0.6);
+            scene.add(ambient);
+            
+            const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+            dirLight.position.set(5, 10, 5);
+            dirLight.castShadow = true;
+            scene.add(dirLight);
+            
+            const pointLight = new THREE.PointLight(0x00ccff, 0.5, 20);
+            pointLight.position.set(-3, 5, -3);
+            scene.add(pointLight);
+        }
+        
+        // 地面
+        function createGround() {
+            const groundGeo = new THREE.PlaneGeometry(30, 30);
+            const groundMat = new THREE.MeshStandardMaterial({ color: 0x1a1a2e });
+            const ground = new THREE.Mesh(groundGeo, groundMat);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+            
+            const grid = new THREE.GridHelper(30, 30, 0x00ccff, 0x222244);
+            scene.add(grid);
+        }
+        
+        // 创建示例物体
+        function createDemoObjects() {
+            // 创建角色（简单的组合体）
+            const character = createCharacter();
+            character.position.y = 1;
+            objects.push(character);
+            
+            // 创建装饰物
+            for(let i=0; i<5; i++) {
+                const obj = createFloatingOrb(i);
+                obj.position.set(Math.cos(i*1.2)*3, 2, Math.sin(i*1.2)*3);
+                objects.push(obj);
+            }
+            
+            updateStatus();
+        }
+        
+        // 创建角色（组合体）
+        function createCharacter() {
+            const group = new THREE.Group();
+            
+            // 身体
+            const bodyGeo = new THREE.CapsuleGeometry(0.4, 1, 8, 16);
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0x00ccff, roughness: 0.3 });
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            body.position.y = 0.7;
+            body.castShadow = true;
+            group.add(body);
+            
+            // 头
+            const headGeo = new THREE.SphereGeometry(0.3, 32, 32);
+            const headMat = new THREE.MeshStandardMaterial({ color: 0xffcc88 });
+            const head = new THREE.Mesh(headGeo, headMat);
+            head.position.y = 1.5;
+            head.castShadow = true;
+            group.add(head);
+            
+            // 眼睛
+            const eyeGeo = new THREE.SphereGeometry(0.05, 16, 16);
+            const eyeMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+            const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
+            leftEye.position.set(-0.1, 1.55, 0.25);
+            group.add(leftEye);
+            const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
+            rightEye.position.set(0.1, 1.55, 0.25);
+            group.add(rightEye);
+            
+            // 存储初始位置用于动画
+            group.userData.initialY = 1;
+            group.userData.baseScale = 1;
+            group.userData.rotationSpeed = 0;
+            group.userData.floatOffset = 0;
+            
+            return group;
+        }
+        
+        // 创建浮动球体
+        function createFloatingOrb(index) {
+            const geo = new THREE.SphereGeometry(0.15 + Math.random()*0.1, 32, 32);
+            const mat = new THREE.MeshStandardMaterial({
+                color: [0x00ff88, 0xff6b6b, 0x4ecdc4, 0xffaa00][index % 4],
+                emissive: [0x004422, 0x440000, 0x002222, 0x442200][index % 4],
+                emissiveIntensity: 0.5,
+                roughness: 0.2
+            });
+            const orb = new THREE.Mesh(geo, mat);
+            orb.castShadow = true;
+            orb.userData.index = index;
+            orb.userData.floatSpeed = 0.5 + Math.random() * 0.5;
+            orb.userData.orbitSpeed = 0.2 + Math.random() * 0.3;
+            return orb;
+        }
+        
+        // ========== 动画系统 ==========
+        
+        function initAnimationSystem() {
+            console.log('🎬 初始化动画系统...');
+            
+            // 定义关键帧动画
+            animations.idle = {
+                name: 'Idle',
+                duration: 2000,
+                keyframes: [
+                    { time: 0, properties: { scale: 1, posY: 1, rotY: 0 } },
+                    { time: 1000, properties: { scale: 1.02, posY: 1.05, rotY: 0 } },
+                    { time: 2000, properties: { scale: 1, posY: 1, rotY: 0 } }
+                ],
+                loop: true
+            };
+            
+            animations.bounce = {
+                name: 'Bounce',
+                duration: 800,
+                keyframes: [
+                    { time: 0, properties: { posY: 1, scale: 1 } },
+                    { time: 200, properties: { posY: 1.5, scale: 1.1 } },
+                    { time: 400, properties: { posY: 0.3, scale: 0.9 } },
+                    { time: 600, properties: { posY: 1, scale: 1 } }
+                ],
+                loop: false
+            };
+            
+            animations.spin = {
+                name: 'Spin',
+                duration: 1000,
+                keyframes: [
+                    { time: 0, properties: { rotY: 0 } },
+                    { time: 250, properties: { rotY: Math.PI/2 } },
+                    { time: 500, properties: { rotY: Math.PI } },
+                    { time: 750, properties: { rotY: Math.PI*1.5 } },
+                    { time: 1000, properties: { rotY: Math.PI*2 } }
+                ],
+                loop: false
+            };
+            
+            animations.dance = {
+                name: 'Dance',
+                duration: 1500,
+                keyframes: [
+                    { time: 0, properties: { posY: 1, scale: 1, rotY: 0 } },
+                    { time: 375, properties: { posY: 1.3, scale: 1.05, rotY: 0.3 } },
+                    { time: 750, properties: { posY: 1, scale: 0.95, rotY: -0.3 } },
+                    { time: 1125, properties: { posY: 1.3, scale: 1.05, rotY: 0.3 } },
+                    { time: 1500, properties: { posY: 1, scale: 1, rotY: 0 } }
+                ],
+                loop: false
+            };
+            
+            console.log(`✅ 定义了 ${Object.keys(animations).length} 个动画`);
+        }
+        
+        // 播放动画
+        function playAnimation(name, targetObj) {
+            if(!animations[name]) {
+                console.error(`❌ 动画不存在: ${name}`);
+                return;
+            }
+            
+            const anim = animations[name];
+            
+            // 如果已经在播放，停止
+            const existingIdx = activeAnimations.findIndex(a => a.name === name && a.target === targetObj);
+            if(existingIdx !== -1) {
+                activeAnimations.splice(existingIdx, 1);
+            }
+            
+            // 添加新动画
+            activeAnimations.push({
+                name: name,
+                target: targetObj,
+                startTime: Date.now(),
+                duration: anim.duration,
+                keyframes: anim.keyframes,
+                loop: anim.loop,
+                startProperties: getCurrentProperties(targetObj)
+            });
+            
+            // 更新UI
+            document.getElementById('activeAnim').textContent = activeAnimations.length;
+            document.getElementById('blendState').textContent = `Playing: ${anim.name}`;
+            
+            console.log(`▶️ 播放动画: ${anim.name}`);
+        }
+        
+        // 获取当前属性
+        function getCurrentProperties(obj) {
+            return {
+                scale: obj.scale.x,
+                posY: obj.position.y,
+                rotY: obj.rotation.y
+            };
+        }
+        
+        // 插值计算
+        function interpolate(keyframes, progress) {
+            // 找到前后关键帧
+            let prevFrame = keyframes[0];
+            let nextFrame = keyframes[keyframes.length - 1];
+            
+            for(let i = 0; i < keyframes.length - 1; i++) {
+                if(progress >= keyframes[i].time && progress <= keyframes[i+1].time) {
+                    prevFrame = keyframes[i];
+                    nextFrame = keyframes[i+1];
+                    break;
+                }
+            }
+            
+            // 计算插值因子
+            const frameProgress = (progress - prevFrame.time) / (nextFrame.time - prevFrame.time);
+            const eased = easeInOutQuad(frameProgress);
+            
+            // 插值属性
+            const result = {};
+            for(let prop in prevFrame.properties) {
+                result[prop] = prevFrame.properties[prop] + 
+                    (nextFrame.properties[prop] - prevFrame.properties[prop]) * eased;
+            }
+            
+            return result;
+        }
+        
+        // 缓动函数
+        function easeInOutQuad(t) {
+            return t < 0.5 ? 2*t*t : 1 - Math.pow(-2*t + 2, 2) / 2;
+        }
+        
+        // 更新动画
+        function updateAnimations() {
+            const now = Date.now();
+            
+            for(let i = activeAnimations.length - 1; i >= 0; i--) {
+                const anim = activeAnimations[i];
+                const elapsed = now - anim.startTime;
+                const progress = elapsed % anim.duration;
+                const loopCount = Math.floor(elapsed / anim.duration);
+                
+                // 检查是否完成（非循环动画）
+                if(!anim.loop && elapsed >= anim.duration) {
+                    // 停止动画，保持最后一帧
+                    activeAnimations.splice(i, 1);
+                    document.getElementById('activeAnim').textContent = activeAnimations.length;
+                    document.getElementById('blendState').textContent = activeAnimations.length > 0 ? 'Blending' : 'Idle';
+                    continue;
+                }
+                
+                // 计算插值
+                const props = interpolate(anim.keyframes, progress);
+                
+                // 应用到目标
+                if(anim.target) {
+                    if(props.scale !== undefined) {
+                        anim.target.scale.setScalar(props.scale);
+                    }
+                    if(props.posY !== undefined) {
+                        anim.target.position.y = props.posY;
+                    }
+                    if(props.rotY !== undefined) {
+                        anim.target.rotation.y = props.rotY;
+                    }
+                }
+            }
+        }
+        
+        // 动画状态函数
+        function playIdle() {
+            playAnimation('idle', objects[0]);
+        }
+        
+        function playBounce() {
+            playAnimation('bounce', objects[0]);
+        }
+        
+        function playSpin() {
+            playAnimation('spin', objects[0]);
+        }
+        
+        function playDance() {
+            playAnimation('dance', objects[0]);
+        }
+        
+        function resetAnimation() {
+            activeAnimations = [];
+            objects.forEach(obj => {
+                if(obj.userData.initialY !== undefined) {
+                    obj.position.y = obj.userData.initialY;
+                    obj.scale.setScalar(1);
+                    obj.rotation.y = 0;
+                }
+            });
+            document.getElementById('activeAnim').textContent = '0';
+            document.getElementById('blendState').textContent = 'Idle';
+            console.log('🔄 动画已重置');
+        }
+        
+        // 更新装饰物动画
+        function updateFloatingObjects(time) {
+            for(let i = 1; i < objects.length; i++) {
+                const obj = objects[i];
+                if(obj.userData.floatSpeed) {
+                    const float = Math.sin(time * obj.userData.floatSpeed) * 0.2;
+                    const orbit = time * obj.userData.orbitSpeed;
+                    obj.position.y = 2 + float;
+                    obj.position.x = Math.cos(orbit + obj.userData.index * 1.2) * 3;
+                    obj.position.z = Math.sin(orbit + obj.userData.index * 1.2) * 3;
+                }
+            }
+        }
+        
+        // 动画循环
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            const time = clock.getElapsedTime();
+            
+            // 更新动画
+            updateAnimations();
+            
+            // 更新浮动物体
+            updateFloatingObjects(time);
+            
+            // 相机轻微移动
+            camera.position.x = Math.sin(time * 0.1) * 0.5;
+            camera.lookAt(0, 0.5, 0);
+            
+            // 渲染
+            renderer.render(scene, camera);
+            
+            // FPS
+            frameCount++;
+            if(time * 1000 - lastFpsTime > 500) {
+                document.getElementById('fps').textContent = Math.round(frameCount * 1000 / (time * 1000 - lastFpsTime));
+                frameCount = 0;
+                lastFpsTime = time * 1000;
+            }
+        }
+        
+        // 更新状态
+        function updateStatus() {
+            document.getElementById('objCount').textContent = objects.length;
+        }
+        
+        // 窗口调整
+        function onResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        
+        // 启动
+        init();
+        console.log('🎬 ThreeJSEvolution v1.2 已启动！点击按钮播放动画');
+    </script>
+</body>
+</html>
