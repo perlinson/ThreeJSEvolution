@@ -3,55 +3,40 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🎮 ThreeJSEvolution v1_phys - 物理引擎演示</title>
+    <title>🎮 ThreeJSEvolution v1.1 - 物理引擎演示</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
-            background: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 100%);
+            background: #000;
             overflow: hidden;
         }
         canvas { display: block; }
+        
         #info {
             position: absolute;
             top: 20px;
             left: 20px;
             color: white;
-            background: rgba(0,0,0,0.8);
+            background: rgba(0,0,0,0.85);
             padding: 20px;
             border-radius: 12px;
-            max-width: 320px;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255,255,255,0.1);
+            max-width: 300px;
+            z-index: 100;
+            border: 1px solid #00ff88;
         }
         #info h3 {
             color: #00ff88;
             margin-bottom: 15px;
-            font-size: 20px;
+            font-size: 18px;
         }
         #info p {
-            color: #aaa;
-            font-size: 14px;
-            line-height: 1.6;
-            margin-bottom: 10px;
+            color: #ccc;
+            font-size: 13px;
+            line-height: 1.8;
+            margin-bottom: 8px;
         }
-        #stats {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            color: #00ff88;
-            background: rgba(0,0,0,0.8);
-            padding: 15px 20px;
-            border-radius: 12px;
-            font-family: 'Fira Code', monospace;
-            font-size: 14px;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-        .highlight {
-            color: #ffaa00;
-            font-weight: bold;
-        }
+        
         #controls {
             position: absolute;
             bottom: 20px;
@@ -59,56 +44,94 @@
             transform: translateX(-50%);
             display: flex;
             gap: 10px;
+            z-index: 100;
         }
         .btn {
-            padding: 12px 24px;
-            background: linear-gradient(90deg, #00ff88, #00ccff);
+            padding: 12px 20px;
+            background: linear-gradient(135deg, #00ff88, #00cc44);
             border: none;
             border-radius: 8px;
             color: #000;
             font-weight: bold;
             cursor: pointer;
-            transition: all 0.3s;
+            font-size: 14px;
+            transition: all 0.2s;
         }
         .btn:hover {
-            transform: scale(1.05);
-            box-shadow: 0 10px 30px rgba(0,255,136,0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0,255,136,0.4);
         }
-        .btn-secondary {
-            background: rgba(255,255,255,0.1);
-            color: #fff;
-            border: 1px solid rgba(255,255,255,0.2);
+        .btn:active {
+            transform: translateY(0);
+        }
+        .btn-red {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a5a);
+        }
+        .btn-blue {
+            background: linear-gradient(135deg, #00ccff, #0099cc);
+        }
+        
+        #status {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: #00ff88;
+            background: rgba(0,0,0,0.85);
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 13px;
+            z-index: 100;
+            border: 1px solid #00ff88;
+        }
+        
+        #error-log {
+            position: absolute;
+            bottom: 80px;
+            left: 20px;
+            color: #ff6b6b;
+            background: rgba(0,0,0,0.9);
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 12px;
+            z-index: 100;
+            display: none;
+            max-width: 400px;
+            max-height: 150px;
+            overflow: auto;
         }
     </style>
 </head>
 <body>
     <!-- 信息面板 -->
     <div id="info">
-        <h3>🧪 物理引擎演示 v1.0</h3>
-        <p><strong>版本:</strong> gen-v1_phys</p>
-        <p><strong>引擎:</strong> Cannon.js 物理引擎</p>
-        <p><strong>功能:</strong> 重力、碰撞、刚体动力学</p>
-        <hr style="border-color: rgba(255,255,255,0.2); margin: 15px 0;">
-        <p>🎮 <span class="highlight">操作说明</span></p>
-        <p>• 空格键: 跳跃</p>
-        <p>• 鼠标拖拽: 旋转视角</p>
-        <p>• 滚轮: 缩放</p>
-        <p>• 点击物体: 施加力</p>
+        <h3>🎮 ThreeJSEvolution v1.1</h3>
+        <p><strong>版本:</strong> gen-v1_phys (已修复)</p>
+        <p><strong>引擎:</strong> Cannon.js + Three.js</p>
+        <hr style="border-color: #333; margin: 10px 0;">
+        <p>🎮 <strong>操作说明：</strong></p>
+        <p>• <kbd style="background:#333;padding:2px 6px;border-radius:4px;">空格</kbd> 跳跃</p>
+        <p>• <kbd style="background:#333;padding:2px 6px;border-radius:4px;">点击</kbd> 施加力</p>
+        <p>• <kbd style="background:#333;padding:2px 6px;border-radius:4px;">滚轮</kbd> 缩放</p>
+        <p>• 按钮：生成物体</p>
     </div>
 
     <!-- 状态显示 -->
-    <div id="stats">
-        <div>FPS: <span id="fps">60</span></div>
+    <div id="status">
+        <div>FPS: <span id="fps">0</span></div>
         <div>Objects: <span id="objCount">0</span></div>
-        <div>Bodies: <span id="bodyCount">0</span></div>
     </div>
+
+    <!-- 错误日志 -->
+    <div id="error-log"></div>
 
     <!-- 控制按钮 -->
     <div id="controls">
-        <button class="btn" onclick="spawnCube()">📦 生成方块</button>
-        <button class="btn" onclick="spawnSphere()">⚽ 生成球体</button>
-        <button class="btn" onclick="resetScene()">🔄 重置场景</button>
-        <button class="btn btn-secondary" onclick="toggleGravity()">🌍 重力开关</button>
+        <button class="btn" onclick="spawnRandomBox()">📦 方块</button>
+        <button class="btn" onclick="spawnRandomSphere()">⚽ 球体</button>
+        <button class="btn btn-blue" onclick="spawnMany()">💥 批量生成</button>
+        <button class="btn btn-red" onclick="resetScene()">🔄 重置</button>
     </div>
 
     <!-- 引入 Three.js -->
@@ -117,135 +140,130 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js"></script>
 
     <script>
-        // 🎯 ThreeJSEvolution 物理引擎 v1
-        // 进化版本: gen-v1_phys
-
+        // 🎯 ThreeJSEvolution v1.1 - 物理引擎（修复版）
+        
+        console.log('🧬 ThreeJSEvolution v1.1 - 物理引擎启动...');
+        
+        // 配置
         const CONFIG = {
-            version: 'gen-v1_phys',
-            gravity: -9.82,
-            physicsStep: 1 / 60,
-            colors: [0x00ff88, 0xff6b6b, 0x4ecdc4, 0xffaa00, 0x9b59b6]
+            version: 'gen-v1_phys_fixed',
+            gravity: -15,  // 增强重力效果
+            physicsStep: 1/60,
+            colors: [0x00ff88, 0xff6b6b, 0x4ecdc4, 0xffaa00, 0x9b59b6, 0x00ccff]
         };
-
-        // ========== THREE.JS SETUP ==========
-        let scene, camera, renderer, clock;
-        let objects = [];
-        let raycaster, mouse;
-
-        // ========== CANNON.JS SETUP ==========
+        
+        // 全局变量
+        let scene, camera, renderer;
         let world;
-        let physicsBodies = [];
-        let physicsMaterials = {};
-
-        // ========== 初始化 ==========
+        let objects = [];
+        let clock, lastTime;
+        let frameCount = 0;
+        let lastFpsUpdate = 0;
+        
+        // 物理材质
+        let groundMaterial, objectMaterial;
+        
+        // 初始化
         function init() {
-            console.log('🧬 ThreeJSEvolution v1_phys - 物理引擎初始化');
-
-            // 1. 创建 Three.js 场景
+            console.log('🔧 初始化引擎...');
+            
+            // 1. Three.js 场景
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x1a1a2e);
-
-            // 2. 创建相机
-            camera = new THREE.PerspectiveCamera(
-                60, window.innerWidth / window.innerHeight, 0.1, 1000
-            );
+            scene.background = new THREE.Color(0x0a0a1a);
+            
+            // 2. 相机
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1000);
             camera.position.set(8, 6, 8);
             camera.lookAt(0, 0, 0);
-
-            // 3. 创建渲染器
+            
+            // 3. 渲染器
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.shadowMap.enabled = true;
             renderer.shadowMap.type = THREE.PCFSoftShadowMap;
             document.body.appendChild(renderer.domElement);
-
+            
             // 4. 初始化物理引擎
             initPhysics();
-
-            // 5. 添加光源
+            
+            // 5. 光照
             addLights();
-
-            // 6. 创建地面
+            
+            // 6. 地面
             createGround();
-
-            // 7. 添加示例物体
-            createExampleObjects();
-
-            // 8. 设置输入
+            
+            // 7. 示例物体
+            createDemoObjects();
+            
+            // 8. 输入
             setupInput();
-
-            // 9. 开始渲染循环
+            
+            // 9. 动画循环
             clock = new THREE.Clock();
+            lastTime = 0;
             animate();
-
-            // 10. 窗口大小调整
-            window.addEventListener('resize', onWindowResize);
-
-            console.log('✅ 初始化完成!');
+            
+            // 10. 窗口调整
+            window.addEventListener('resize', onResize);
+            
+            console.log('✅ 初始化完成！FPS监控已启动');
+            updateStatus();
         }
-
-        // ========== 物理引擎初始化 ==========
+        
+        // 初始化物理引擎
         function initPhysics() {
-            console.log('🔧 初始化 Cannon.js 物理引擎...');
-
+            console.log('🔧 初始化Cannon.js物理引擎...');
+            
             world = new CANNON.World();
             world.gravity.set(0, CONFIG.gravity, 0);
             world.broadphase = new CANNON.NaiveBroadphase();
             world.solver.iterations = 10;
-
-            // 物理材质
-            physicsMaterials.ground = new CANNON.Material('ground');
-            physicsMaterials.object = new CANNON.Material('object');
-
-            const objectGroundContact = new CANNON.ContactMaterial(
-                physicsMaterials.ground,
-                physicsMaterials.object,
-                {
-                    friction: 0.5,
-                    restitution: 0.3
-                }
+            
+            // 材质
+            groundMaterial = new CANNON.Material('ground');
+            objectMaterial = new CANNON.Material('object');
+            
+            // 接触材质
+            const groundObjectContact = new CANNON.ContactMaterial(
+                groundMaterial, objectMaterial,
+                { friction: 0.5, restitution: 0.3 }
             );
-            world.addContactMaterial(objectGroundContact);
-
-            // 物体间接触
+            world.addContactMaterial(groundObjectContact);
+            
             const objectObjectContact = new CANNON.ContactMaterial(
-                physicsMaterials.object,
-                physicsMaterials.object,
-                {
-                    friction: 0.3,
-                    restitution: 0.5
-                }
+                objectMaterial, objectMaterial,
+                { friction: 0.3, restitution: 0.5 }
             );
             world.addContactMaterial(objectObjectContact);
-
+            
             console.log('✅ 物理引擎就绪');
         }
-
-        // ========== 光照系统 ==========
+        
+        // 添加光照
         function addLights() {
             // 环境光
-            const ambient = new THREE.AmbientLight(0x404040, 0.5);
+            const ambient = new THREE.AmbientLight(0x404040, 0.6);
             scene.add(ambient);
-
+            
             // 主方向光
-            const directional = new THREE.DirectionalLight(0xffffff, 1);
-            directional.position.set(10, 20, 10);
-            directional.castShadow = true;
-            directional.shadow.mapSize.width = 2048;
-            directional.shadow.mapSize.height = 2048;
-            scene.add(directional);
-
-            // 点光源
-            const pointLight = new THREE.PointLight(0x00ff88, 0.5, 50);
-            pointLight.position.set(-5, 10, -5);
-            scene.add(pointLight);
+            const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+            dirLight.position.set(10, 20, 10);
+            dirLight.castShadow = true;
+            dirLight.shadow.mapSize.width = 2048;
+            dirLight.shadow.mapSize.height = 2048;
+            scene.add(dirLight);
+            
+            // 补光
+            const fillLight = new THREE.DirectionalLight(0x00ccff, 0.3);
+            fillLight.position.set(-10, 5, -10);
+            scene.add(fillLight);
         }
-
-        // ========== 创建地面 ==========
+        
+        // 创建地面
         function createGround() {
             // Three.js 地面
-            const groundGeo = new THREE.PlaneGeometry(30, 30);
-            const groundMat = new THREE.MeshStandardMaterial({
+            const groundGeo = new THREE.PlaneGeometry(40, 40);
+            const groundMat = new THREE.MeshStandardMaterial({ 
                 color: 0x1a1a2e,
                 roughness: 0.8,
                 metalness: 0.2
@@ -254,48 +272,37 @@
             groundMesh.rotation.x = -Math.PI / 2;
             groundMesh.receiveShadow = true;
             scene.add(groundMesh);
-
-            // 网格辅助线
-            const grid = new THREE.GridHelper(30, 30, 0x00ff88, 0x333366);
-            grid.position.y = 0.01;
+            
+            // 网格
+            const grid = new THREE.GridHelper(40, 40, 0x00ff88, 0x222244);
             scene.add(grid);
-
+            
             // Cannon.js 地面
             const groundShape = new CANNON.Plane();
-            const groundBody = new CANNON.Body({
-                mass: 0, // 静态物体
-                material: physicsMaterials.ground
-            });
+            const groundBody = new CANNON.Body({ mass: 0, material: groundMaterial });
             groundBody.addShape(groundShape);
-            groundBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
+            groundBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1,0,0), -Math.PI/2);
             world.addBody(groundBody);
         }
-
-        // ========== 创建示例物体 ==========
-        function createExampleObjects() {
-            // 创建几个堆叠的方块
-            for (let i = 0; i < 3; i++) {
-                for (let j = 0; j < 3; j++) {
-                    spawnBox(
-                        (i - 1) * 1.2,
-                        0.5 + j * 1.2,
-                        0,
-                        1, 1, 1,
-                        0.5
-                    );
+        
+        // 创建示例物体
+        function createDemoObjects() {
+            // 堆叠方块
+            for(let i=0; i<3; i++) {
+                for(let j=0; j<3; j++) {
+                    createBox((i-1)*1.1, 0.5 + j*1.1, 0, 1, 1, 1);
                 }
             }
-
-            // 创建球体
-            spawnSphere(2, 3, 2, 0.5);
-            spawnSphere(-2, 4, -1, 0.6);
+            // 球体
+            createSphere(2, 0.5, 2, 0.5);
+            createSphere(-2, 0.5, -2, 0.6);
         }
-
-        // ========== 生成方块 ==========
-        function spawnBox(x, y, z, w, h, d, mass = 1) {
+        
+        // 创建方块
+        function createBox(x, y, z, w, h, d, mass=1) {
             const color = CONFIG.colors[Math.floor(Math.random() * CONFIG.colors.length)];
-
-            // Three.js 网格
+            
+            // Three.js
             const geo = new THREE.BoxGeometry(w, h, d);
             const mat = new THREE.MeshStandardMaterial({
                 color: color,
@@ -307,30 +314,25 @@
             mesh.castShadow = true;
             mesh.receiveShadow = true;
             scene.add(mesh);
-
-            // Cannon.js 刚体
+            
+            // Cannon.js
             const shape = new CANNON.Box(new CANNON.Vec3(w/2, h/2, d/2));
-            const body = new CANNON.Body({
-                mass: mass,
-                material: physicsMaterials.object
-            });
+            const body = new CANNON.Body({ mass: mass, material: objectMaterial });
             body.addShape(shape);
             body.position.set(x, y, z);
             world.addBody(body);
-
-            // 存储引用
+            
             const obj = { mesh, body, type: 'box' };
             objects.push(obj);
-            physicsBodies.push(body);
-
+            
             return obj;
         }
-
-        // ========== 生成球体 ==========
-        function spawnSphere(x, y, z, radius, mass = 1) {
+        
+        // 创建球体
+        function createSphere(x, y, z, radius, mass=1) {
             const color = CONFIG.colors[Math.floor(Math.random() * CONFIG.colors.length)];
-
-            // Three.js 网格
+            
+            // Three.js
             const geo = new THREE.SphereGeometry(radius, 32, 32);
             const mat = new THREE.MeshStandardMaterial({
                 color: color,
@@ -342,180 +344,169 @@
             mesh.castShadow = true;
             mesh.receiveShadow = true;
             scene.add(mesh);
-
-            // Cannon.js 刚体
+            
+            // Cannon.js
             const shape = new CANNON.Sphere(radius);
-            const body = new CANNON.Body({
-                mass: mass,
-                material: physicsMaterials.object
-            });
+            const body = new CANNON.Body({ mass: mass, material: objectMaterial });
             body.addShape(shape);
             body.position.set(x, y, z);
             body.linearDamping = 0.3;
             body.angularDamping = 0.3;
             world.addBody(body);
-
-            // 存储引用
+            
             const obj = { mesh, body, type: 'sphere' };
             objects.push(obj);
-            physicsBodies.push(body);
-
+            
             return obj;
         }
-
-        // ========== 输入控制 ==========
-        function setupInput() {
-            raycaster = new THREE.Raycaster();
-            mouse = new THREE.Vector2();
-
-            // 键盘
-            window.addEventListener('keydown', (e) => {
-                if (e.code === 'Space') {
-                    // 跳跃 - 给第一个物体施加向上的力
-                    if (objects.length > 0) {
-                        const firstBody = objects[0].body;
-                        firstBody.velocity.y = 5;
-                    }
-                }
-            });
-
-            // 鼠标点击 - 施加力
-            window.addEventListener('click', (e) => {
-                mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-                mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
-
-                raycaster.setFromCamera(mouse, camera);
-                const meshes = objects.map(obj => obj.mesh);
-                const intersects = raycaster.intersectObjects(meshes);
-
-                if (intersects.length > 0) {
-                    const hit = intersects[0];
-                    const obj = objects.find(o => o.mesh === hit.object);
-                    if (obj) {
-                        // 施加随机力
-                        const force = 10;
-                        obj.body.applyImpulse(
-                            new CANNON.Vec3(
-                                (Math.random() - 0.5) * force,
-                                force,
-                                (Math.random() - 0.5) * force
-                            ),
-                            obj.body.position
-                        );
-                        console.log('💥 施加力到物体!');
-                    }
-                }
-            });
-
-            // 鼠标拖拽 - 旋转视角
-            let isDragging = false;
-            let previousMousePosition = { x: 0, y: 0 };
-
-            window.addEventListener('mousedown', () => isDragging = true);
-            window.addEventListener('mouseup', () => isDragging = false);
-            window.addEventListener('mousemove', (e) => {
-                if (isDragging) {
-                    const deltaX = e.clientX - previousMousePosition.x;
-                    const deltaY = e.clientY - previousMousePosition.y;
-
-                    camera.position.x = Math.sin(deltaX * 0.01) * 12;
-                    camera.position.z = Math.cos(deltaX * 0.01) * 12;
-                    camera.lookAt(0, 0, 0);
-                }
-                previousMousePosition = { x: e.clientX, y: e.clientY };
-            });
-
-            // 滚轮 - 缩放
-            window.addEventListener('wheel', (e) => {
-                const zoom = e.deltaY * 0.01;
-                camera.position.multiplyScalar(1 + zoom * 0.1);
-                camera.position.clampLength(5, 20);
-            });
+        
+        // 生成随机方块
+        function spawnRandomBox() {
+            const x = (Math.random() - 0.5) * 6;
+            const z = (Math.random() - 0.5) * 6;
+            const size = 0.5 + Math.random() * 0.5;
+            createBox(x, 8, z, size, size, size, 0.5);
+            updateStatus();
+            console.log('📦 生成方块');
         }
-
-        // ========== 动画循环 ==========
-        let lastTime = 0;
-        let frameCount = 0;
-        let lastFpsTime = 0;
-
-        function animate(time = 0) {
-            requestAnimationFrame(animate);
-
-            const deltaTime = clock.getDelta();
-
-            // 物理更新
-            world.step(CONFIG.physicsStep);
-
-            // 同步 Three.js 和 Cannon.js
-            objects.forEach(obj => {
-                obj.mesh.position.copy(obj.body.position);
-                obj.mesh.quaternion.copy(obj.body.quaternion);
-            });
-
-            // 相机轻微摆动
-            camera.position.y += Math.sin(time * 0.001) * 0.002;
-
-            // 渲染
-            renderer.render(scene, camera);
-
-            // FPS 计算
-            frameCount++;
-            if (time - lastFpsTime > 1000) {
-                document.getElementById('fps').textContent = frameCount;
-                document.getElementById('objCount').textContent = objects.length;
-                document.getElementById('bodyCount').textContent = physicsBodies.length;
-                frameCount = 0;
-                lastFpsTime = time;
+        
+        // 生成随机球体
+        function spawnRandomSphere() {
+            const x = (Math.random() - 0.5) * 6;
+            const z = (Math.random() - 0.5) * 6;
+            const radius = 0.3 + Math.random() * 0.4;
+            createSphere(x, 8, z, radius, 0.5);
+            updateStatus();
+            console.log('⚽ 生成球体');
+        }
+        
+        // 批量生成
+        function spawnMany() {
+            console.log('💥 批量生成10个物体...');
+            for(let i=0; i<5; i++) {
+                setTimeout(() => spawnRandomBox(), i*100);
+                setTimeout(() => spawnRandomSphere(), i*100 + 50);
             }
+            setTimeout(updateStatus, 600);
         }
-
-        // ========== 工具函数 ==========
-        function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        }
-
-        function spawnCube() {
-            const x = (Math.random() - 0.5) * 4;
-            const z = (Math.random() - 0.5) * 4;
-            spawnBox(x, 5, z, 0.8, 0.8, 0.8, 0.5);
-        }
-
-        function spawnSphere() {
-            const x = (Math.random() - 0.5) * 4;
-            const z = (Math.random() - 0.5) * 4;
-            spawnSphere(x, 5, z, 0.4, 0.5);
-        }
-
+        
+        // 重置场景
         function resetScene() {
+            console.log('🔄 重置场景...');
             // 移除所有物体
             objects.forEach(obj => {
                 scene.remove(obj.mesh);
                 world.removeBody(obj.body);
             });
             objects = [];
-            physicsBodies = [];
-
-            // 重新创建示例物体
-            createExampleObjects();
-            console.log('🔄 场景已重置');
+            
+            // 重新创建示例
+            createDemoObjects();
+            updateStatus();
+            console.log('✅ 场景已重置');
         }
-
-        let gravityEnabled = true;
-        function toggleGravity() {
-            gravityEnabled = !gravityEnabled;
-            world.gravity.set(0, gravityEnabled ? CONFIG.gravity : 0, 0);
-            console.log(`🌍 重力: ${gravityEnabled ? '开启' : '关闭'}`);
-
-            // 唤醒所有刚体
-            physicsBodies.forEach(body => body.wakeUp());
+        
+        // 设置输入
+        function setupInput() {
+            // 键盘
+            window.addEventListener('keydown', (e) => {
+                if(e.code === 'Space') {
+                    e.preventDefault();
+                    // 给所有物体施加随机力
+                    objects.forEach((obj, i) => {
+                        setTimeout(() => {
+                            obj.body.wakeUp();
+                            obj.body.applyImpulse(
+                                new CANNON.Vec3((Math.random()-0.5)*5, 8, (Math.random()-0.5)*5),
+                                obj.body.position
+                            );
+                        }, i*50);
+                    });
+                    console.log('💥 跳跃！');
+                }
+            });
+            
+            // 鼠标点击 - 施加力
+            const raycaster = new THREE.Raycaster();
+            const mouse = new THREE.Vector2();
+            
+            window.addEventListener('click', (e) => {
+                mouse.x = (e.clientX/window.innerWidth)*2 - 1;
+                mouse.y = -(e.clientY/window.innerHeight)*2 + 1;
+                
+                raycaster.setFromCamera(mouse, camera);
+                const meshes = objects.map(o => o.mesh);
+                const intersects = raycaster.intersectObjects(meshes);
+                
+                if(intersects.length > 0) {
+                    const hitObj = objects.find(o => o.mesh === intersects[0].object);
+                    if(hitObj) {
+                        hitObj.body.wakeUp();
+                        hitObj.body.applyImpulse(
+                            new CANNON.Vec3((Math.random()-0.5)*10, 10, (Math.random()-0.5)*10),
+                            hitObj.body.position
+                        );
+                        console.log('💥 点击施加力！');
+                    }
+                }
+            });
+            
+            // 滚轮缩放
+            window.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const zoom = e.deltaY > 0 ? 0.9 : 1.1;
+                camera.position.multiplyScalar(zoom);
+                camera.position.clampLength(3, 30);
+            }, { passive: false });
         }
-
-        // ========== 启动 ==========
+        
+        // 动画循环
+        function animate(time) {
+            requestAnimationFrame(animate);
+            
+            const deltaTime = Math.min((time - lastTime) / 1000, 0.1);
+            lastTime = time;
+            
+            // 物理更新
+            world.step(CONFIG.physicsStep);
+            
+            // 同步位置
+            objects.forEach(obj => {
+                obj.mesh.position.copy(obj.body.position);
+                obj.mesh.quaternion.copy(obj.body.quaternion);
+            });
+            
+            // 相机轻微移动
+            camera.position.x += Math.sin(time * 0.0003) * 0.002;
+            camera.lookAt(0, 0, 0);
+            
+            // 渲染
+            renderer.render(scene, camera);
+            
+            // FPS更新
+            frameCount++;
+            if(time - lastFpsUpdate > 500) {
+                document.getElementById('fps').textContent = Math.round(frameCount * 1000 / (time - lastFpsUpdate));
+                frameCount = 0;
+                lastFpsUpdate = time;
+            }
+        }
+        
+        // 更新状态
+        function updateStatus() {
+            document.getElementById('objCount').textContent = objects.length;
+        }
+        
+        // 窗口调整
+        function onResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        
+        // 启动
         init();
-        console.log('🎮 ThreeJSEvolution v1_phys - 物理引擎演示已启动');
-        console.log('📝 使用说明: 点击按钮生成物体，空格跳跃，点击物体施加力');
+        console.log('🎮 ThreeJSEvolution v1.1 已启动！按空格跳跃，点击物体施加力');
     </script>
 </body>
 </html>
