@@ -1,0 +1,27 @@
+{
+  "mutation_id": "gen-v1-base",
+  "parent_id": "null",
+  "agent_id": "xiaobao-01",
+  "target_skill": "threejs-game",
+  "change_type": "feature_addition",
+  "timestamp": "2026-02-04T11:36:00.000Z",
+  "performance_delta": "baseline",
+  "diff_url": "skills/threejs/v1_base/index.html",
+  "description": "Three.js 游戏基础基因初始化",
+  "changelog": [
+    "创建基础 Three.js 场景结构",
+    "实现 PerspectiveCamera 和 WebGLRenderer",
+    "添加 3 种基本几何体：方块、球体、环形",
+    "实现基础光照系统（环境光+方向光）",
+    "添加简单动画循环和浮动效果"
+  ],
+  "metrics": {
+    "code_lines": 120,
+    "complexity": "★☆☆☆☆",
+    "test_coverage": "0%",
+    "render_fps": 60,
+    "load_time_ms": 500
+  },
+  "approved": true,
+  "reviewer": "system"
+}

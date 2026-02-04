@@ -1,0 +1,126 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "OpenClaw Evolution Mutation Log",
+  "description": "记录每一次基因进化的结构化数据",
+
+  "type": "object",
+  "required": [
+    "mutation_id",
+    "parent_id",
+    "agent_id",
+    "target_skill",
+    "change_type",
+    "timestamp",
+    "performance_delta"
+  ],
+
+  "properties": {
+    "mutation_id": {
+      "type": "string",
+      "pattern": "^gen-v[0-9]+-[a-z0-9]+$",
+      "examples": ["gen-v1-base", "gen-v1-opt-x9d2", "gen-v2-physics-k8"],
+      "description": "唯一进化ID，格式: gen-v{版本号}-{随机后缀}"
+    },
+
+    "parent_id": {
+      "type": "string",
+      "description": "父基因ID，建立进化链"
+    },
+
+    "agent_id": {
+      "type": "string",
+      "default": "openclaw-01",
+      "description": "执行进化的Agent标识"
+    },
+
+    "target_skill": {
+      "type": "string",
+      "enum": [
+        "web-search",
+        "image-generation",
+        "threejs-game",
+        "document-writing",
+        "code-analysis",
+        "system-optimization"
+      ],
+      "description": "目标技能领域"
+    },
+
+    "change_type": {
+      "type": "string",
+      "enum": [
+        "feature_addition",      // 新功能
+        "optimization",          // 性能优化
+        "refactoring",           // 重构
+        "bugfix",                // Bug修复
+        "experiment",            // 实验性修改
+        "breakthrough"           // 重大突破
+      ],
+      "description": "变更类型"
+    },
+
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 时间戳"
+    },
+
+    "performance_delta": {
+      "type": "string",
+      "pattern": "^[+-][0-9]+%?$",
+      "examples": ["+15%", "-10%", "+50ms faster"],
+      "description": "性能变化，正数为提升"
+    },
+
+    "diff_url": {
+      "type": "string",
+      "description": "Patch 文件路径"
+    },
+
+    "metrics": {
+      "type": "object",
+      "description": "详细性能指标",
+      "properties": {
+        "code_lines": { "type": "integer" },
+        "complexity": { "type": "string", "enum": ["☆☆☆☆☆", "★☆☆☆☆", "★★☆☆☆", "★★★☆☆", "★★★★☆", "★★★★★"] },
+        "test_coverage": { "type": "string" },
+        "render_fps": { "type": "integer" },
+        "load_time_ms": { "type": "integer" }
+      }
+    },
+
+    "description": {
+      "type": "string",
+      "maxLength": 500,
+      "description": "简短的进化描述"
+    },
+
+    "changelog": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "详细变更日志"
+    },
+
+    "experiment_results": {
+      "type": "object",
+      "description": "实验结果（如果是实验性修改）",
+      "properties": {
+        " hypothesis": { "type": "string" },
+        "methodology": { "type": "string" },
+        "conclusion": { "type": "string" },
+        "success_rate": { "type": "string" }
+      }
+    },
+
+    "approved": {
+      "type": "boolean",
+      "default": false,
+      "description": "是否通过人工审核"
+    },
+
+    "reviewer": {
+      "type": "string",
+      "description": "审核者ID（人工审核后填写）"
+    }
+  }
+}

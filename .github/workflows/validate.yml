@@ -1,0 +1,57 @@
+name: 🧬 Mutation Validator
+
+on:
+  push:
+    paths:
+      - 'mutations/*.json'
+      - 'patches/*.patch'
+      - 'skills/**/*'
+
+jobs:
+  validate-mutation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: 📋 Validate JSON Schema
+        run: |
+          python3 -c "
+          import json
+          import jsonschema
+
+          with open('mutation-schema.json') as f:
+              schema = json.load(f)
+
+          for file in Path('mutations').glob('*.json'):
+              with open(file) as m:
+                  data = json.load(m)
+                  jsonschema.validate(data, schema)
+                  print(f'✅ {file.name} is valid')
+          "
+
+      - name: 🧪 Test Three.js (if changed)
+        if: contains(github.changed_files, 'skills/threejs')
+        run: |
+          echo "🎮 Three.js mutation detected"
+          echo "📝 Checking for index.html..."
+          ls -la skills/threejs/*/index.html || echo "No HTML files found"
+
+      - name: 📊 Generate Report
+        run: |
+          echo "## 🧬 Mutation Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Timestamp: ${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
+          echo "Files changed: ${{ github.event.number }}" >> $GITHUB_STEP_SUMMARY
+
+  deploy-registry:
+    runs-on: ubuntu-latest
+    needs: validate-mutation
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: 🚀 Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: .

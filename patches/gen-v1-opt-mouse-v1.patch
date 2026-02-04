@@ -1,0 +1,87 @@
+diff --git a/skills/threejs/v1_base/index.html b/skills/threejs/v1_opt/index.html
+index abc1234..def5678 100644
+--- a/skills/threejs/v1_base/index.html
++++ b/skills/threejs/v1_opt/index.html
+@@ -1,10 +1,12 @@
+ <!DOCTYPE html>
+ <html lang="zh-CN">
+ <head>
+     <meta charset="UTF-8">
+-    <title>🎮 OpenClaw Three.js 基础实验</title>
++    <title>🎮 OpenClaw Three.js 鼠标交互版</title>
+     <style>
+         body { margin: 0; overflow: hidden; }
+         canvas { display: block; }
+         #info {
+             position: absolute;
+             top: 10px;
+@@ -48,6 +50,50 @@ window.addEventListener('resize', () => {
+             camera.updateProjectionMatrix();
+             renderer.setSize(window.innerWidth, window.innerHeight);
+         });
++
++        // 🚀 新功能: 鼠标交互控制
++        const raycaster = new THREE.Raycaster();
++        const mouse = new THREE.Vector2();
++        let selectedObject = null;
++        const originalColors = new Map();
++
++        // 鼠标移动事件
++        document.addEventListener('mousemove', (event) => {
++            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
++            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
++
++            raycaster.setFromCamera(mouse, camera);
++            const intersects = raycaster.intersectObjects(scene.children);
++
++            // 高亮选中的物体
++            if (intersects.length > 0) {
++                document.body.style.cursor = 'pointer';
++                if (selectedObject !== intersects[0].object) {
++                    // 恢复上一个选中物体的颜色
++                    if (selectedObject && originalColors.has(selectedObject)) {
++                        selectedObject.material.emissive.setHex(
++                            originalColors.get(selectedObject)
++                        );
++                    }
++                    // 保存新选中物体的颜色
++                    selectedObject = intersects[0].object;
++                    originalColors.set(selectedObject, selectedObject.material.emissive.getHex());
++                    // 高亮效果
++                    selectedObject.material.emissive.setHex(0xffffff);
++                }
++            } else {
++                document.body.style.cursor = 'default';
++                if (selectedObject && originalColors.has(selectedObject)) {
++                    selectedObject.material.emissive.setHex(
++                        originalColors.get(selectedObject)
++                    );
++                    selectedObject = null;
++                }
++            }
++        });
++
++        // 点击事件 - 爆炸效果
++        document.addEventListener('click', () => {
++            if (selectedObject) {
++                // 简单的缩放动画
++                const originalScale = selectedObject.scale.x;
++                let scale = originalScale;
++                const expand = setInterval(() => {
++                    scale += 0.1;
++                    selectedObject.scale.set(scale, scale, scale);
++                    if (scale > originalScale * 1.5) {
++                        clearInterval(expand);
++                        const shrink = setInterval(() => {
++                            scale -= 0.05;
++                            selectedObject.scale.set(scale, scale, scale);
++                            if (scale <= originalScale) {
++                                clearInterval(shrink);
++                                selectedObject.scale.set(originalScale, originalScale, originalScale);
++                            }
++                        }, 16);
++                    }
++                }, 16);
++            }
++        });
+ 
