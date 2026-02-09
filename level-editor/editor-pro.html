@@ -1,0 +1,1344 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎮 Three.js 关卡编辑器 Pro</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.9/dat.gui.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; overflow: hidden; }
+        
+        #editor-container { width: 100vw; height: 100vh; position: relative; }
+        
+        /* 工具栏 */
+        .toolbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 50px;
+            background: rgba(0,0,0,0.85);
+            display: flex;
+            align-items: center;
+            padding: 0 15px;
+            z-index: 100;
+            border-bottom: 1px solid rgba(0,255,136,0.3);
+        }
+        
+        .toolbar-logo {
+            font-size: 18px;
+            font-weight: bold;
+            color: #00ff88;
+            margin-right: 30px;
+        }
+        
+        .toolbar-section {
+            display: flex;
+            gap: 8px;
+            margin-right: 20px;
+            align-items: center;
+        }
+        
+        .toolbar-label {
+            font-size: 11px;
+            color: #888;
+            text-transform: uppercase;
+        }
+        
+        .tool-btn {
+            padding: 8px 15px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 6px;
+            color: #fff;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s;
+        }
+        
+        .tool-btn:hover { background: rgba(0,255,136,0.2); border-color: #00ff88; }
+        .tool-btn.active { background: rgba(0,255,136,0.3); border-color: #00ff88; color: #00ff88; }
+        .tool-btn.primary { background: linear-gradient(135deg, #00ff88, #00ccff); color: #000; border: none; }
+        
+        /* 物体面板 */
+        .objects-panel {
+            position: fixed;
+            left: 15px;
+            top: 70px;
+            width: 200px;
+            background: rgba(0,0,0,0.85);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            overflow: hidden;
+            z-index: 90;
+        }
+        
+        .panel-header {
+            padding: 12px 15px;
+            background: rgba(0,0,0,0.5);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            font-size: 12px;
+            color: #00ff88;
+            text-transform: uppercase;
+        }
+        
+        .object-list {
+            max-height: 300px;
+            overflow-y: auto;
+            padding: 10px;
+        }
+        
+        .object-item {
+            padding: 10px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .object-item:hover { border-color: #00ff88; background: rgba(0,255,136,0.1); }
+        .object-item.selected { border-color: #00ff88; background: rgba(0,255,136,0.2); }
+        .object-icon { font-size: 20px; }
+        .object-name { font-size: 12px; color: #fff; }
+        
+        /* 属性面板 */
+        .properties-panel {
+            position: fixed;
+            right: 15px;
+            top: 70px;
+            width: 250px;
+            background: rgba(0,0,0,0.85);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            z-index: 90;
+        }
+        
+        .property-group {
+            padding: 15px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        .property-label {
+            font-size: 11px;
+            color: #888;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .property-input {
+            width: 100%;
+            padding: 8px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 6px;
+            color: #fff;
+            font-size: 12px;
+        }
+        
+        .property-row {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .property-row .property-input { flex: 1; }
+        
+        /* 图层面板 */
+        .layers-panel {
+            position: fixed;
+            right: 15px;
+            top: 400px;
+            width: 250px;
+            background: rgba(0,0,0,0.85);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            z-index: 90;
+        }
+        
+        .layer-item {
+            padding: 10px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            cursor: pointer;
+        }
+        
+        .layer-item:hover { background: rgba(255,255,255,0.05); }
+        .layer-item.selected { background: rgba(0,255,136,0.1); }
+        .layer-name { font-size: 12px; color: #fff; }
+        .layer-visible { font-size: 14px; cursor: pointer; }
+        
+        /* 场景列表 */
+        .scenes-panel {
+            position: fixed;
+            right: 15px;
+            top: 580px;
+            width: 250px;
+            background: rgba(0,0,0,0.85);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            z-index: 90;
+        }
+        
+        .scene-item {
+            padding: 10px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        .scene-name { font-size: 12px; color: #fff; }
+        .scene-actions { display: flex; gap: 5px; }
+        
+        /* 导出面板 */
+        .export-panel {
+            position: fixed;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.9);
+            border: 1px solid rgba(0,255,136,0.3);
+            border-radius: 12px;
+            padding: 15px 25px;
+            z-index: 100;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+        
+        /* 帮助提示 */
+        .help-hint {
+            position: fixed;
+            bottom: 15px;
+            left: 15px;
+            background: rgba(0,0,0,0.7);
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 11px;
+            color: #888;
+            z-index: 90;
+        }
+        
+        .help-key {
+            background: rgba(255,255,255,0.2);
+            padding: 2px 6px;
+            border-radius: 3px;
+            margin: 0 3px;
+        }
+        
+        /* 网格 */
+        .grid-overlay {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            background: 
+                linear-gradient(rgba(0,255,136,0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0,255,136,0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            z-index: 50;
+        }
+        
+        /* 快捷工具 */
+        .quick-tools {
+            position: fixed;
+            left: 230px;
+            top: 70px;
+            display: flex;
+            gap: 5px;
+            z-index: 90;
+        }
+        
+        .quick-btn {
+            width: 40px;
+            height: 40px;
+            background: rgba(0,0,0,0.8);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            color: #fff;
+            cursor: pointer;
+            font-size: 18px;
+            transition: all 0.2s;
+        }
+        
+        .quick-btn:hover { border-color: #00ff88; background: rgba(0,255,136,0.1); }
+        .quick-btn.active { border-color: #00ff88; background: rgba(0,255,136,0.2); }
+        
+        /* 状态栏 */
+        .status-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 30px;
+            background: rgba(0,0,0,0.9);
+            display: flex;
+            align-items: center;
+            padding: 0 15px;
+            font-size: 11px;
+            color: #888;
+            z-index: 100;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .status-item { margin-right: 20px; }
+        .status-value { color: #00ff88; }
+    </style>
+</head>
+<body>
+    <div id="editor-container"></div>
+    <div class="grid-overlay"></div>
+    
+    <!-- 工具栏 -->
+    <div class="toolbar">
+        <div class="toolbar-logo">🎮 Level Editor Pro</div>
+        
+        <div class="toolbar-section">
+            <span class="toolbar-label">文件</span>
+            <button class="tool-btn" onclick="newProject()">新建</button>
+            <button class="tool-btn" onclick="openProject()">打开</button>
+            <button class="tool-btn primary" onclick="saveProject()">保存</button>
+        </div>
+        
+        <div class="toolbar-section">
+            <span class="toolbar-label">编辑</span>
+            <button class="tool-btn" onclick="undo()">↩️ 撤销</button>
+            <button class="tool-btn" onclick="redo()">↪️ 重做</button>
+            <button class="tool-btn" onclick="deleteSelected()">🗑️ 删除</button>
+        </div>
+        
+        <div class="toolbar-section">
+            <span class="toolbar-label">视图</span>
+            <button class="tool-btn" onclick="toggleGrid()">📐 网格</button>
+            <button class="tool-btn" onclick="toggleWireframe()">🔲 线框</button>
+            <button class="tool-btn" onclick="resetCamera()">🎯 重置视角</button>
+        </div>
+        
+        <div class="toolbar-section">
+            <span class="toolbar-label">工具</span>
+            <button class="tool-btn active" id="selectTool" onclick="setTool('select')">🖱️ 选择</button>
+            <button class="tool-btn" id="moveTool" onclick="setTool('move')">✋ 移动</button>
+            <button class="tool-btn" id="rotateTool" onclick="setTool('rotate')">🔄 旋转</button>
+            <button class="tool-btn" id="scaleTool" onclick="setTool('scale')">📐 缩放</button>
+        </div>
+        
+        <div class="toolbar-section">
+            <span class="toolbar-label">运行</span>
+            <button class="tool-btn primary" onclick="playLevel()">▶️ 测试关卡</button>
+        </div>
+    </div>
+    
+    <!-- 物体面板 -->
+    <div class="objects-panel">
+        <div class="panel-header">📦 物体库</div>
+        <div class="object-list" id="objectList">
+            <div class="object-item" ondblclick="addObject('cube')">
+                <span class="object-icon">📦</span>
+                <span class="object-name">立方体</span>
+            </div>
+            <div class="object-item" ondblclick="addObject('sphere')">
+                <span class="object-icon">⚽</span>
+                <span class="object-name">球体</span>
+            </div>
+            <div class="object-item" ondblclick="addObject('cylinder')">
+                <span class="object-icon">🛢️</span>
+                <span class="object-name">圆柱体</span>
+            </div>
+            <div class="object-item" ondblclick="addObject('plane')">
+                <span class="object-icon">⬜</span>
+                <span class="object-name">平面</span>
+            </div>
+            <div class="object-item" ondblclick="addObject('player')">
+                <span class="object-icon">🤖</span>
+                <span class="object-name">玩家起点</span>
+            </div>
+            <div class="object-item" ondblclick="addObject('enemy')">
+                <span class="object-icon">👾</span>
+                <span class="object-name">敌人</span>
+            </div>
+            <div class="object-item" ondblclick="addObject('collectible')">
+                <span class="object-icon">⭐</span>
+                <span class="object-name">收集品</span>
+            </div>
+            <div class="object-item" ondblclick="addObject('checkpoint')">
+                <span class="object-icon">🚩</span>
+                <span class="object-name">检查点</span>
+            </div>
+            <div class="object-item" ondblclick="addObject('door')">
+                <span class="object-icon">🚪</span>
+                <span class="object-name">门/出口</span>
+            </div>
+            <div class="object-item" ondblclick="addObject('platform')">
+                <span class="object-icon">📏</span>
+                <span class="object-name">平台</span>
+            </div>
+            <div class="object-item" ondblclick="addObject('ramp')">
+                <span class="object-icon">📐</span>
+                <span class="object-name">斜坡</span>
+            </div>
+            <div class="object-item" ondblclick="addObject('obstacle')">
+                <span class="object-icon">🪨</span>
+                <span class="object-name">障碍物</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 快捷工具 -->
+    <div class="quick-tools">
+        <button class="quick-btn" onclick="duplicateObject()" title="复制">📋</button>
+        <button class="quick-btn" onclick="groupObjects()" title="组合">🔗</button>
+        <button class="quick-btn" onclick="ungroupObjects()" title="取消组合">🔓</button>
+        <button class="quick-btn" onclick="alignObjects()" title="对齐">⬛</button>
+        <button class="quick-btn" onclick="distributeObjects()" title="分布">📊</button>
+    </div>
+    
+    <!-- 属性面板 -->
+    <div class="properties-panel">
+        <div class="panel-header">⚙️ 属性</div>
+        <div id="propertiesContent">
+            <div class="property-group">
+                <div class="property-label">名称</div>
+                <input type="text" class="property-input" id="propName" value="未选择物体">
+            </div>
+            <div class="property-group">
+                <div class="property-label">位置</div>
+                <div class="property-row">
+                    <input type="number" class="property-input" id="propX" placeholder="X" value="0">
+                    <input type="number" class="property-input" id="propY" placeholder="Y" value="0">
+                    <input type="number" class="property-input" id="propZ" placeholder="Z" value="0">
+                </div>
+            </div>
+            <div class="property-group">
+                <div class="property-label">旋转</div>
+                <div class="property-row">
+                    <input type="number" class="property-input" id="propRotX" placeholder="X" value="0">
+                    <input type="number" class="property-input" id="propRotY" placeholder="Y" value="0">
+                    <input type="number" class="property-input" id="propRotZ" placeholder="Z" value="0">
+                </div>
+            </div>
+            <div class="property-group">
+                <div class="property-label">缩放</div>
+                <div class="property-row">
+                    <input type="number" class="property-input" id="propScaleX" placeholder="X" value="1">
+                    <input type="number" class="property-input" id="propScaleY" placeholder="Y" value="1">
+                    <input type="number" class="property-input" id="propScaleZ" placeholder="Z" value="1">
+                </div>
+            </div>
+            <div class="property-group">
+                <div class="property-label">颜色</div>
+                <input type="color" class="property-input" id="propColor" value="#00ff88">
+            </div>
+            <div class="property-group">
+                <div class="property-label">物理属性</div>
+                <select class="property-input" id="propPhysics">
+                    <option value="static">静态 (Static)</option>
+                    <option value="dynamic">动态 (Dynamic)</option>
+                    <option value="kinematic">运动学 (Kinematic)</option>
+                    <option value="none">无物理</option>
+                </select>
+            </div>
+            <div class="property-group">
+                <button class="tool-btn primary" style="width:100%;" onclick="applyProperties()">应用</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 图层 -->
+    <div class="layers-panel">
+        <div class="panel-header">📚 图层</div>
+        <div id="layerList">
+            <div class="layer-item selected" onclick="selectLayer(0)">
+                <span class="layer-name">默认</span>
+                <span class="layer-visible">👁️</span>
+            </div>
+            <div class="layer-item" onclick="selectLayer(1)">
+                <span class="layer-name">物理层</span>
+                <span class="layer-visible">👁️</span>
+            </div>
+            <div class="layer-item" onclick="selectLayer(2)">
+                <span class="layer-name">装饰层</span>
+                <span class="layer-visible">👁️</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 场景 -->
+    <div class="scenes-panel">
+        <div class="panel-header">🎬 场景</div>
+        <div id="sceneList">
+            <div class="scene-item selected">
+                <span class="scene-name">主场景</span>
+                <div class="scene-actions">
+                    <button class="tool-btn" onclick="renameScene()">✏️</button>
+                </div>
+            </div>
+        </div>
+        <div style="padding:10px;">
+            <button class="tool-btn" style="width:100%;" onclick="addScene()">+ 添加场景</button>
+        </div>
+    </div>
+    
+    <!-- 导出 -->
+    <div class="export-panel">
+        <span style="color:#888; font-size:12px;">导出格式:</span>
+        <button class="tool-btn" onclick="exportJSON()">📄 JSON</button>
+        <button class="tool-btn" onclick="exportGLTF()">📦 GLTF</button>
+        <button class="tool-btn" onclick="exportCode()">💻 代码</button>
+        <span style="color:#888; font-size:12px; margin-left:10px;">|</span>
+        <button class="tool-btn primary" onclick="exportAll()">📦 全部导出</button>
+    </div>
+    
+    <!-- 帮助 -->
+    <div class="help-hint">
+        <span class="help-key">W</span><span class="help-key">A</span><span class="help-key">S</span><span class="help-key">D</span> 移动视角 |
+        <span class="help-key">鼠标左键</span> 选择/操作 |
+        <span class="help-key">鼠标右键</span> 旋转视角 |
+        <span class="help-key">Del</span> 删除 |
+        <span class="help-key">Ctrl+Z</span> 撤销
+    </div>
+    
+    <!-- 状态栏 -->
+    <div class="status-bar">
+        <span class="status-item">物体: <span class="status-value" id="objectCount">0</span></span>
+        <span class="status-item">顶点数: <span class="status-value" id="vertexCount">0</span></span>
+        <span class="status-item">多边形: <span class="status-value" id="polyCount">0</span></span>
+        <span class="status-item">FPS: <span class="status-value" id="fps">60</span></span>
+        <span class="status-item" style="margin-left:auto;">Three.js Level Editor Pro v1.0</span>
+    </div>
+
+    <script>
+        // ==================== 编辑器状态 ====================
+        const state = {
+            scene: null,
+            camera: null,
+            renderer: null,
+            selectedObject: null,
+            objects: [],
+            currentTool: 'select',
+            showGrid: true,
+            wireframe: false,
+            history: [],
+            historyIndex: -1,
+            currentScene: '主场景',
+            scenes: ['主场景'],
+            layers: ['默认', '物理层', '装饰层'],
+            clipboard: null
+        };
+        
+        // ==================== 初始化 ====================
+        function init() {
+            // Three.js场景
+            state.scene = new THREE.Scene();
+            state.scene.background = new THREE.Color(0x1a1a2e);
+            
+            // 相机
+            state.camera = new THREE.PerspectiveCamera(
+                60, window.innerWidth / window.innerHeight, 0.1, 1000
+            );
+            state.camera.position.set(20, 20, 20);
+            state.camera.lookAt(0, 0, 0);
+            
+            // 渲染器
+            state.renderer = new THREE.WebGLRenderer({ antialias: true });
+            state.renderer.setSize(window.innerWidth, window.innerHeight);
+            state.renderer.shadowMap.enabled = true;
+            document.getElementById('editor-container').appendChild(state.renderer.domElement);
+            
+            // 光照
+            setupLights();
+            
+            // 创建地面
+            createGround();
+            
+            // 创建网格辅助
+            createGrid();
+            
+            // 事件监听
+            setupControls();
+            
+            // 保存初始状态
+            saveState();
+            
+            // 开始渲染
+            animate();
+            
+            // 更新统计
+            updateStats();
+        }
+        
+        // ==================== 场景设置 ====================
+        function setupLights() {
+            const ambient = new THREE.AmbientLight(0x404040, 0.6);
+            state.scene.add(ambient);
+            
+            const directional = new THREE.DirectionalLight(0xffffff, 0.8);
+            directional.position.set(20, 40, 20);
+            directional.castShadow = true;
+            state.scene.add(directional);
+            
+            // 点光源
+            const colors = [0xff4757, 0x00ff88, 0x00ccff];
+            colors.forEach((color, i) => {
+                const light = new THREE.PointLight(color, 0.3, 50);
+                light.position.set(
+                    Math.cos(i * Math.PI * 2 / 3) * 15,
+                    10,
+                    Math.sin(i * Math.PI * 2 / 3) * 15
+                );
+                state.scene.add(light);
+            });
+        }
+        
+        function createGround() {
+            const groundGeo = new THREE.PlaneGeometry(100, 100);
+            const groundMat = new THREE.MeshStandardMaterial({ 
+                color: 0x2d3436,
+                roughness: 0.8 
+            });
+            const ground = new THREE.Mesh(groundGeo, groundMat);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            ground.name = 'ground';
+            state.scene.add(ground);
+        }
+        
+        function createGrid() {
+            state.grid = new THREE.GridHelper(100, 20, 0x00ff88, 0x333355);
+            state.scene.add(state.grid);
+        }
+        
+        // ==================== 物体操作 ====================
+        const objectConfigs = {
+            cube: { geometry: 'box', size: [2, 2, 2], color: 0x00ff88, label: '立方体' },
+            sphere: { geometry: 'sphere', size: [1], color: 0x00ccff, label: '球体' },
+            cylinder: { geometry: 'cylinder', size: [1, 1, 2], color: 0xffa502, label: '圆柱体' },
+            plane: { geometry: 'plane', size: [5, 5], color: 0x7bed9f, label: '平面' },
+            player: { geometry: 'capsule', size: [0.5, 1], color: 0x00ff88, label: '玩家' },
+            enemy: { geometry: 'box', size: [1.5, 1.5, 1.5], color: 0xff4757, label: '敌人' },
+            collectible: { geometry: 'octahedron', size: [0.5], color: 0xffd700, label: '收集品' },
+            checkpoint: { geometry: 'cylinder', size: [0.3, 0.3, 2], color: 0x3742fa, label: '检查点' },
+            door: { geometry: 'box', size: [3, 4, 0.5], color: 0xa55eea, label: '门' },
+            platform: { geometry: 'box', size: [4, 0.5, 2], color: 0xced6e0, label: '平台' },
+            ramp: { geometry: 'box', size: [3, 0.3, 2], color: 0xff6b81, label: '斜坡' },
+            obstacle: { geometry: 'dodecahedron', size: [1], color: 0x57606f, label: '障碍物' }
+        };
+        
+        function addObject(type) {
+            const config = objectConfigs[type];
+            if (!config) return;
+            
+            let geometry;
+            switch(config.geometry) {
+                case 'box':
+                    geometry = new THREE.BoxGeometry(...config.size);
+                    break;
+                case 'sphere':
+                    geometry = new THREE.SphereGeometry(config.size[0], 16, 16);
+                    break;
+                case 'cylinder':
+                    geometry = new THREE.CylinderGeometry(config.size[0], config.size[1], config.size[2], 16);
+                    break;
+                case 'plane':
+                    geometry = new THREE.PlaneGeometry(config.size[0], config.size[1]);
+                    break;
+                case 'capsule':
+                    geometry = new THREE.CapsuleGeometry(config.size[0], config.size[1], 8, 16);
+                    break;
+                case 'octahedron':
+                    geometry = new THREE.OctahedronGeometry(config.size[0]);
+                    break;
+                case 'dodecahedron':
+                    geometry = new THREE.DodecahedronGeometry(config.size[0]);
+                    break;
+                default:
+                    geometry = new THREE.BoxGeometry(2, 2, 2);
+            }
+            
+            const material = new THREE.MeshStandardMaterial({ 
+                color: config.color,
+                roughness: 0.5,
+                metalness: 0.3
+            });
+            
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.position.set(0, 2, 0);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            
+            mesh.userData = {
+                type: type,
+                name: `${config.label}_${state.objects.length + 1}`,
+                physics: 'static',
+                layer: 0
+            };
+            
+            state.scene.add(mesh);
+            state.objects.push(mesh);
+            selectObject(mesh);
+            saveState();
+            updateStats();
+            
+            // 添加动画效果
+            mesh.scale.set(0, 0, 0);
+            animateScale(mesh, 1);
+        }
+        
+        function animateScale(mesh, targetScale) {
+            const start = Date.now();
+            const duration = 300;
+            
+            const animate = () => {
+                const elapsed = Date.now() - start;
+                const progress = Math.min(elapsed / duration, 1);
+                const scale = targetScale * (1 - Math.pow(1 - progress, 3));
+                
+                mesh.scale.set(scale, scale, scale);
+                
+                if (progress < 1) {
+                    requestAnimationFrame(animate);
+                }
+            };
+            animate();
+        }
+        
+        function selectObject(mesh) {
+            // 取消之前的选择
+            if (state.selectedObject) {
+                state.selectedObject.material.emissive = new THREE.Color(0x000000);
+            }
+            
+            state.selectedObject = mesh;
+            
+            if (mesh) {
+                mesh.material.emissive = new THREE.Color(0x333333);
+                updatePropertyPanel(mesh);
+            } else {
+                updatePropertyPanel(null);
+            }
+        }
+        
+        function deleteSelected() {
+            if (state.selectedObject) {
+                state.scene.remove(state.selectedObject);
+                state.objects = state.objects.filter(o => o !== state.selectedObject);
+                selectObject(null);
+                saveState();
+                updateStats();
+            }
+        }
+        
+        function duplicateObject() {
+            if (!state.selectedObject) return;
+            
+            const original = state.selectedObject;
+            const geometry = original.geometry.clone();
+            const material = original.material.clone();
+            
+            const copy = new THREE.Mesh(geometry, material);
+            copy.position.copy(original.position);
+            copy.position.x += 2;
+            copy.rotation.copy(original.rotation);
+            copy.scale.copy(original.scale);
+            copy.castShadow = true;
+            copy.receiveShadow = true;
+            
+            copy.userData = { ...original.userData };
+            copy.userData.name = original.userData.name + '_copy';
+            
+            state.scene.add(copy);
+            state.objects.push(copy);
+            selectObject(copy);
+            saveState();
+            updateStats();
+        }
+        
+        // ==================== 属性面板 ====================
+        function updatePropertyPanel(mesh) {
+            if (!mesh) {
+                document.getElementById('propName').value = '未选择物体';
+                ['propX', 'propY', 'propZ'].forEach(id => document.getElementById(id).value = '0');
+                ['propRotX', 'propRotY', 'propRotZ'].forEach(id => document.getElementById(id).value = '0');
+                ['propScaleX', 'propScaleY', 'propScaleZ'].forEach(id => document.getElementById(id).value = '1');
+                document.getElementById('propColor').value = '#00ff88';
+                document.getElementById('propPhysics').value = 'static';
+                return;
+            }
+            
+            document.getElementById('propName').value = mesh.userData.name || '物体';
+            document.getElementById('propX').value = mesh.position.x.toFixed(2);
+            document.getElementById('propY').value = mesh.position.y.toFixed(2);
+            document.getElementById('propZ').value = mesh.position.z.toFixed(2);
+            
+            document.getElementById('propRotX').value = (mesh.rotation.x * 180 / Math.PI).toFixed(1);
+            document.getElementById('propRotY').value = (mesh.rotation.y * 180 / Math.PI).toFixed(1);
+            document.getElementById('propRotZ').value = (mesh.rotation.z * 180 / Math.PI).toFixed(1);
+            
+            document.getElementById('propScaleX').value = mesh.scale.x.toFixed(2);
+            document.getElementById('propScaleY').value = mesh.scale.y.toFixed(2);
+            document.getElementById('propScaleZ').value = mesh.scale.z.toFixed(2);
+            
+            document.getElementById('propColor').value = '#' + mesh.material.color.getHexString();
+            document.getElementById('propPhysics').value = mesh.userData.physics || 'static';
+        }
+        
+        function applyProperties() {
+            if (!state.selectedObject) return;
+            
+            const obj = state.selectedObject;
+            
+            obj.userData.name = document.getElementById('propName').value;
+            obj.position.x = parseFloat(document.getElementById('propX').value) || 0;
+            obj.position.y = parseFloat(document.getElementById('propY').value) || 0;
+            obj.position.z = parseFloat(document.getElementById('propZ').value) || 0;
+            
+            obj.rotation.x = (parseFloat(document.getElementById('propRotX').value) || 0) * Math.PI / 180;
+            obj.rotation.y = (parseFloat(document.getElementById('propRotY').value) || 0) * Math.PI / 180;
+            obj.rotation.z = (parseFloat(document.getElementById('propRotZ').value) || 0) * Math.PI / 180;
+            
+            obj.scale.x = parseFloat(document.getElementById('propScaleX').value) || 1;
+            obj.scale.y = parseFloat(document.getElementById('propScaleY').value) || 1;
+            obj.scale.z = parseFloat(document.getElementById('propScaleZ').value) || 1;
+            
+            obj.material.color.set(document.getElementById('propColor').value);
+            obj.userData.physics = document.getElementById('propPhysics').value;
+            
+            saveState();
+        }
+        
+        // ==================== 历史记录 ====================
+        function saveState() {
+            // 清除前进历史
+            state.history = state.history.slice(0, state.historyIndex + 1);
+            
+            // 保存当前状态
+            const stateData = {
+                objects: state.objects.map(obj => ({
+                    type: obj.userData.type,
+                    position: { x: obj.position.x, y: obj.position.y, z: obj.position.z },
+                    rotation: { x: obj.rotation.x, y: obj.rotation.y, z: obj.rotation.z },
+                    scale: { x: obj.scale.x, y: obj.scale.y, z: obj.scale.z },
+                    color: obj.material.color.getHex(),
+                    physics: obj.userData.physics,
+                    name: obj.userData.name
+                }))
+            };
+            
+            state.history.push(JSON.stringify(stateData));
+            state.historyIndex = state.history.length - 1;
+            
+            // 限制历史长度
+            if (state.history.length > 50) {
+                state.history.shift();
+                state.historyIndex--;
+            }
+        }
+        
+        function undo() {
+            if (state.historyIndex > 0) {
+                state.historyIndex--;
+                restoreState(state.history[state.historyIndex]);
+            }
+        }
+        
+        function redo() {
+            if (state.historyIndex < state.history.length - 1) {
+                state.historyIndex++;
+                restoreState(state.history[state.historyIndex]);
+            }
+        }
+        
+        function restoreState(stateData) {
+            // 清除当前物体
+            state.objects.forEach(obj => state.scene.remove(obj));
+            state.objects = [];
+            
+            // 恢复物体
+            const data = JSON.parse(stateData);
+            data.objects.forEach(objData => {
+                // 重新创建物体
+                const config = objectConfigs[objData.type];
+                if (config) {
+                    addObjectWithData(objData);
+                }
+            });
+            
+            selectObject(null);
+            updateStats();
+        }
+        
+        function addObjectWithData(data) {
+            let geometry;
+            switch(objectConfigs[data.type].geometry) {
+                case 'box': geometry = new THREE.BoxGeometry(2, 2, 2); break;
+                case 'sphere': geometry = new THREE.SphereGeometry(1, 16, 16); break;
+                default: geometry = new THREE.BoxGeometry(2, 2, 2);
+            }
+            
+            const material = new THREE.MeshStandardMaterial({ 
+                color: data.color || objectConfigs[data.type].color
+            });
+            
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.position.set(data.position.x, data.position.y, data.position.z);
+            mesh.rotation.set(data.rotation.x, data.rotation.y, data.rotation.z);
+            mesh.scale.set(data.scale.x, data.scale.y, data.scale.z);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            
+            mesh.userData = {
+                type: data.type,
+                name: data.name,
+                physics: data.physics,
+                layer: 0
+            };
+            
+            state.scene.add(mesh);
+            state.objects.push(mesh);
+        }
+        
+        // ==================== 工具 ====================
+        function setTool(tool) {
+            state.currentTool = tool;
+            document.querySelectorAll('.toolbar .tool-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelectorAll('.quick-tools .quick-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.getElementById(tool + 'Tool')?.classList.add('active');
+        }
+        
+        function toggleGrid() {
+            state.showGrid = !state.showGrid;
+            state.grid.visible = state.showGrid;
+        }
+        
+        function toggleWireframe() {
+            state.wireframe = !state.wireframe;
+            state.scene.traverse(obj => {
+                if (obj.isMesh) {
+                    obj.material.wireframe = state.wireframe;
+                }
+            });
+        }
+        
+        function resetCamera() {
+            state.camera.position.set(20, 20, 20);
+            state.camera.lookAt(0, 0, 0);
+        }
+        
+        // ==================== 场景管理 ====================
+        function addScene() {
+            const name = `场景${state.scenes.length + 1}`;
+            state.scenes.push(name);
+            renderSceneList();
+        }
+        
+        function renameScene() {
+            const name = prompt('输入场景名称:', state.currentScene);
+            if (name) {
+                const index = state.scenes.indexOf(state.currentScene);
+                state.scenes[index] = name;
+                state.currentScene = name;
+                renderSceneList();
+            }
+        }
+        
+        function renderSceneList() {
+            const list = document.getElementById('sceneList');
+            list.innerHTML = state.scenes.map((name, i) => `
+                <div class="scene-item ${name === state.currentScene ? 'selected' : ''}" 
+                     onclick="switchScene('${name}')">
+                    <span class="scene-name">${name}</span>
+                    <div class="scene-actions">
+                        <button class="tool-btn" onclick="event.stopPropagation(); renameScene()">✏️</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function switchScene(name) {
+            // 保存当前场景
+            saveState();
+            // 切换场景
+            state.currentScene = name;
+            renderSceneList();
+        }
+        
+        // ==================== 图层 ====================
+        function selectLayer(index) {
+            document.querySelectorAll('.layer-item').forEach((item, i) => {
+                item.classList.toggle('selected', i === index);
+            });
+        }
+        
+        // ==================== 导出 ====================
+        function exportJSON() {
+            const data = {
+                version: '1.0',
+                scene: state.currentScene,
+                objects: state.objects.map(obj => ({
+                    type: obj.userData.type,
+                    name: obj.userData.name,
+                    position: { x: obj.position.x, y: obj.position.y, z: obj.position.z },
+                    rotation: { x: obj.rotation.x, y: obj.rotation.y, z: obj.rotation.z },
+                    scale: { x: obj.scale.x, y: obj.scale.y, z: obj.scale.z },
+                    color: obj.material.color.getHex(),
+                    physics: obj.userData.physics,
+                    layer: obj.userData.layer
+                }))
+            };
+            
+            download(data, 'level.json', 'application/json');
+        }
+        
+        function exportGLTF() {
+            alert('GLTF导出需要额外库支持，请使用JSON格式或代码导出。');
+        }
+        
+        function exportCode() {
+            const data = {
+                objects: state.objects.map(obj => ({
+                    type: obj.userData.type,
+                    position: [obj.position.x, obj.position.y, obj.position.z],
+                    rotation: [obj.rotation.x, obj.rotation.y, obj.rotation.z],
+                    scale: [obj.scale.x, obj.scale.y, obj.scale.z],
+                    color: '#' + obj.material.color.getHexString(),
+                    physics: obj.userData.physics
+                }))
+            };
+            
+            const code = `
+// 关卡数据 - 自动生成
+const levelData = ${JSON.stringify(data, null, 2)};
+
+// 创建关卡函数
+function createLevel(scene) {
+${data.objects.map((obj, i) => `
+    // ${obj.name || '物体' + i}
+    const mesh${i} = create${obj.type.charAt(0).toUpperCase() + obj.type.slice(1)}Mesh();
+    mesh${i}.position.set(${obj.position.join(', ')});
+    mesh${i}.rotation.set(${obj.rotation.join(', ')});
+    mesh${i}.scale.set(${obj.scale.join(', ')});
+    scene.add(mesh${i});
+`).join('\n')}
+}
+
+export { levelData, createLevel };
+`;
+            
+            download(code, 'level.js', 'text/javascript');
+        }
+        
+        function exportAll() {
+            exportJSON();
+            setTimeout(() => exportCode(), 500);
+        }
+        
+        function download(content, filename, type) {
+            const blob = new Blob([content], { type });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        // ==================== 项目管理 ====================
+        function newProject() {
+            if (confirm('新建项目将清除当前数据，是否继续？')) {
+                state.objects.forEach(obj => state.scene.remove(obj));
+                state.objects = [];
+                state.history = [];
+                state.historyIndex = -1;
+                saveState();
+                selectObject(null);
+                updateStats();
+            }
+        }
+        
+        function saveProject() {
+            const project = {
+                name: '关卡项目',
+                version: '1.0',
+                created: new Date().toISOString(),
+                scenes: state.scenes,
+                currentScene: state.currentScene,
+                levelData: JSON.parse(state.history[state.historyIndex])
+            };
+            
+            download(JSON.stringify(project, null, 2), 'project.json', 'application/json');
+        }
+        
+        function openProject() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = e => {
+                const file = e.target.files[0];
+                const reader = new FileReader();
+                reader.onload = event => {
+                    const project = JSON.parse(event.target.result);
+                    if (project.levelData) {
+                        // 恢复物体
+                        project.levelData.objects.forEach(objData => addObjectWithData(objData));
+                        state.scenes = project.scenes || ['主场景'];
+                        state.currentScene = project.currentScene || '主场景';
+                        renderSceneList();
+                        saveState();
+                        updateStats();
+                    }
+                };
+                reader.readAsText(file);
+            };
+            input.click();
+        }
+        
+        // ==================== 测试关卡 ====================
+        function playLevel() {
+            alert('🎮 测试模式\n\n点击确定开始测试...\n\n这个功能将在新窗口中运行关卡预览！');
+            
+            // 打开测试窗口
+            const testWindow = window.open('', '_blank', 'width=800,height=600');
+            testWindow.document.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>关卡测试</title>
+                    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"><\/script>
+                    <style>body{margin:0;overflow:hidden;}</style>
+                </head>
+                <body>
+                    <div id="info" style="position:fixed;top:10px;left:10px;color:#fff;font-family:sans-serif;">
+                        关卡测试模式<br>
+                        WASD移动 | 鼠标转向
+                    </div>
+                    <script>
+                        // 简化的测试场景
+                        const scene = new THREE.Scene();
+                        scene.background = new THREE.Color(0x1a1a2e);
+                        const camera = new THREE.PerspectiveCamera(75,800/600,0.1,1000);
+                        const renderer = new THREE.WebGLRenderer();
+                        renderer.setSize(800,600);
+                        document.body.appendChild(renderer.domElement);
+                        
+                        // 光照
+                        const light = new THREE.DirectionalLight(0xffffff,1);
+                        light.position.set(5,10,5);
+                        scene.add(light);
+                        scene.add(new THREE.AmbientLight(0x404040));
+                        
+                        // 地面
+                        const ground = new THREE.Mesh(
+                            new THREE.PlaneGeometry(100,100),
+                            new THREE.MeshStandardMaterial({color:0x2d3436})
+                        );
+                        ground.rotation.x=-Math.PI/2;
+                        scene.add(ground);
+                        
+                        // 玩家
+                        const player = new THREE.Mesh(
+                            new THREE.CapsuleGeometry(0.3,0.5,4),
+                            new THREE.MeshStandardMaterial({color:0x00ff88})
+                        );
+                        player.position.y=0.5;
+                        scene.add(player);
+                        
+                        // 相机跟随
+                        camera.position.set(0,5,10);
+                        
+                        function animate(){
+                            requestAnimationFrame(animate);
+                            renderer.render(scene,camera);
+                        }
+                        animate();
+                    <\/script>
+                </body>
+                </html>
+            `);
+        }
+        
+        // ==================== 统计更新 ====================
+        function updateStats() {
+            document.getElementById('objectCount').textContent = state.objects.length;
+            
+            let vertices = 0;
+            let polys = 0;
+            state.objects.forEach(obj => {
+                if (obj.geometry) {
+                    vertices += obj.geometry.attributes.position?.count || 0;
+                    polys += obj.geometry.index ? obj.geometry.index.count / 3 : 0;
+                }
+            });
+            
+            document.getElementById('vertexCount').textContent = vertices;
+            document.getElementById('polyCount').textContent = Math.round(polys);
+        }
+        
+        // ==================== 相机控制 ====================
+        let isDragging = false;
+        let previousMousePosition = { x: 0, y: 0 };
+        let cameraDistance = 30;
+        let cameraTheta = Math.PI / 4;
+        let cameraPhi = Math.PI / 4;
+        
+        function setupControls() {
+            const canvas = state.renderer.domElement;
+            
+            canvas.addEventListener('mousedown', onMouseDown);
+            canvas.addEventListener('mousemove', onMouseMove);
+            canvas.addEventListener('mouseup', onMouseUp);
+            canvas.addEventListener('wheel', onWheel);
+            canvas.addEventListener('dblclick', onDoubleClick);
+            
+            document.addEventListener('keydown', onKeyDown);
+            window.addEventListener('resize', onResize);
+        }
+        
+        function onMouseDown(e) {
+            if (e.button === 2) {
+                isDragging = true;
+                previousMousePosition = { x: e.clientX, y: e.clientY };
+            } else if (e.button === 0) {
+                // 射线检测选择
+                const raycaster = new THREE.Raycaster();
+                const mouse = new THREE.Vector2(
+                    (e.clientX / window.innerWidth) * 2 - 1,
+                    -(e.clientY / window.innerHeight) * 2 + 1
+                );
+                
+                raycaster.setFromCamera(mouse, state.camera);
+                const intersects = raycaster.intersectObjects(state.objects);
+                
+                if (intersects.length > 0) {
+                    selectObject(intersects[0].object);
+                } else {
+                    selectObject(null);
+                }
+            }
+        }
+        
+        function onMouseMove(e) {
+            if (isDragging) {
+                const deltaX = e.clientX - previousMousePosition.x;
+                const deltaY = e.clientY - previousMousePosition.y;
+                
+                cameraTheta -= deltaX * 0.01;
+                cameraPhi = Math.max(0.1, Math.min(Math.PI / 2 - 0.1, cameraPhi + deltaY * 0.01));
+                
+                updateCameraPosition();
+                previousMousePosition = { x: e.clientX, y: e.clientY };
+            }
+        }
+        
+        function onMouseUp() {
+            isDragging = false;
+        }
+        
+        function onWheel(e) {
+            cameraDistance += e.deltaY * 0.05;
+            cameraDistance = Math.max(5, Math.min(100, cameraDistance));
+            updateCameraPosition();
+        }
+        
+        function onDoubleClick(e) {
+            // 添加物体
+            const raycaster = new THREE.Raycaster();
+            const mouse = new THREE.Vector2(
+                (e.clientX / window.innerWidth) * 2 - 1,
+                -(e.clientY / window.innerHeight) * 2 + 1
+            );
+            
+            raycaster.setFromCamera(mouse, state.camera);
+            const intersects = raycaster.intersectObjects([state.scene.children.find(c => c.name === 'ground')]);
+            
+            if (intersects.length > 0) {
+                // 临时添加一个立方体
+                const geometry = new THREE.BoxGeometry(2, 2, 2);
+                const material = new THREE.MeshStandardMaterial({ color: 0x00ff88 });
+                const mesh = new THREE.Mesh(geometry, material);
+                mesh.position.copy(intersects[0].point);
+                mesh.position.y = 1;
+                mesh.castShadow = true;
+                mesh.userData = { type: 'cube', name: '立方体_' + (state.objects.length + 1), physics: 'static', layer: 0 };
+                state.scene.add(mesh);
+                state.objects.push(mesh);
+                selectObject(mesh);
+                saveState();
+                updateStats();
+            }
+        }
+        
+        function onKeyDown(e) {
+            switch(e.key.toLowerCase()) {
+                case 'w': case 'a': case 's': case 'd':
+                    moveCamera(e.key.toLowerCase());
+                    break;
+                case 'delete': case 'backspace':
+                    deleteSelected();
+                    break;
+                case 'z':
+                    if (e.ctrlKey) undo();
+                    break;
+                case 'y':
+                    if (e.ctrlKey) redo();
+                    break;
+                case 'd':
+                    if (e.ctrlKey) duplicateObject();
+                    break;
+            }
+        }
+        
+        function moveCamera(key) {
+            const speed = 2;
+            switch(key) {
+                case 'w': state.camera.position.z -= speed; break;
+                case 's': state.camera.position.z += speed; break;
+                case 'a': state.camera.position.x -= speed; break;
+                case 'd': state.camera.position.x += speed; break;
+            }
+            updateCameraPosition();
+        }
+        
+        function updateCameraPosition() {
+            state.camera.position.x = cameraDistance * Math.sin(cameraPhi) * Math.cos(cameraTheta);
+            state.camera.position.y = cameraDistance * Math.cos(cameraPhi);
+            state.camera.position.z = cameraDistance * Math.sin(cameraPhi) * Math.sin(cameraTheta);
+            state.camera.lookAt(0, 0, 0);
+        }
+        
+        function onResize() {
+            state.camera.aspect = window.innerWidth / window.innerHeight;
+            state.camera.updateProjectionMatrix();
+            state.renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        
+        // ==================== 主循环 ====================
+        let lastTime = Date.now();
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            const now = Date.now();
+            const fps = Math.round(1000 / (now - lastTime));
+            document.getElementById('fps').textContent = fps;
+            lastTime = now;
+            
+            state.renderer.render(state.scene, state.camera);
+        }
+        
+        // ==================== 启动 ====================
+        init();
+    </script>
+</body>
+</html>
