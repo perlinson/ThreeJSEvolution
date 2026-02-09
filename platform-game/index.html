@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎮 3D平台跳跃游戏 - Three.js</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            overflow: hidden; 
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            background: #000;
+        }
+        #game-container { width: 100vw; height: 100vh; }
+        
+        /* HUD */
+        .hud {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            pointer-events: none;
+            z-index: 100;
+        }
+        .score-panel {
+            background: rgba(0,0,0,0.7);
+            padding: 15px 25px;
+            border-radius: 15px;
+            border: 2px solid rgba(0,255,136,0.5);
+        }
+        .score-label {
+            font-size: 12px;
+            color: #888;
+            text-transform: uppercase;
+        }
+        .score-value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #00ff88;
+        }
+        .level-info {
+            background: rgba(0,0,0,0.7);
+            padding: 15px 25px;
+            border-radius: 15px;
+            text-align: right;
+        }
+        .level-title {
+            font-size: 18px;
+            color: #ffd700;
+            font-weight: bold;
+        }
+        .level-num {
+            font-size: 12px;
+            color: #888;
+        }
+        
+        /* 生命值 */
+        .health-bar {
+            position: fixed;
+            bottom: 30px;
+            left: 30px;
+            background: rgba(0,0,0,0.7);
+            padding: 15px 25px;
+            border-radius: 15px;
+            z-index: 100;
+        }
+        .health-label {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 8px;
+        }
+        .health-bar-inner {
+            width: 200px;
+            height: 12px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        .health-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff4757, #ff6b81);
+            transition: width 0.3s;
+        }
+        
+        /* 收集品 */
+        .collectibles {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: rgba(0,0,0,0.7);
+            padding: 15px 25px;
+            border-radius: 15px;
+            z-index: 100;
+        }
+        .collect-icon {
+            font-size: 24px;
+        }
+        .collect-count {
+            font-size: 24px;
+            font-weight: bold;
+            color: #ffd700;
+        }
+        
+        /* 开始画面 */
+        .start-screen {
+            position: fixed;
+            inset: 0;
+            background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 50%, #0f0f1a 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+        }
+        .game-title {
+            font-size: 64px;
+            margin-bottom: 20px;
+            text-shadow: 0 0 30px rgba(0,255,136,0.5);
+            animation: pulse 2s ease-in-out infinite;
+        }
+        @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+        .game-subtitle {
+            font-size: 18px;
+            color: #888;
+            margin-bottom: 50px;
+        }
+        .start-btn {
+            padding: 18px 60px;
+            font-size: 20px;
+            background: linear-gradient(135deg, #00ff88, #00ccff);
+            border: none;
+            border-radius: 35px;
+            color: #000;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin: 10px;
+        }
+        .start-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 40px rgba(0,255,136,0.4);
+        }
+        .controls-info {
+            margin-top: 50px;
+            display: flex;
+            gap: 40px;
+        }
+        .control-item {
+            text-align: center;
+            color: #888;
+        }
+        .control-key {
+            background: rgba(255,255,255,0.1);
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 16px;
+            color: #fff;
+            margin-bottom: 8px;
+        }
+        .control-desc {
+            font-size: 12px;
+        }
+        
+        /* 游戏结束 */
+        .game-over {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.9);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+        }
+        .game-over.active { display: flex; }
+        .game-over-title {
+            font-size: 48px;
+            color: #ff4757;
+            margin-bottom: 20px;
+        }
+        .victory-title {
+            color: #00ff88;
+        }
+        .final-score {
+            font-size: 32px;
+            color: #ffd700;
+            margin-bottom: 30px;
+        }
+        
+        /* 关卡切换 */
+        .level-transition {
+            position: fixed;
+            inset: 0;
+            background: #000;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 150;
+        }
+        .level-transition.active { display: flex; }
+        .level-text {
+            font-size: 48px;
+            color: #ffd700;
+            text-shadow: 0 0 30px rgba(255,215,0,0.5);
+            animation: levelAnim 1.5s ease-out;
+        }
+        @keyframes levelAnim {
+            0% { transform: scale(0.5); opacity: 0; }
+            50% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(1); opacity: 0; }
+        }
+        
+        /* 暂停菜单 */
+        .pause-menu {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+        }
+        .pause-menu.active { display: flex; }
+        .pause-title {
+            font-size: 48px;
+            color: #fff;
+            margin-bottom: 30px;
+        }
+        
+        /* 提示 */
+        .hint {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.7);
+            padding: 10px 25px;
+            border-radius: 20px;
+            font-size: 14px;
+            color: #888;
+            z-index: 100;
+            animation: fadeInOut 3s ease-in-out infinite;
+        }
+        @keyframes fadeInOut {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container"></div>
+    
+    <!-- HUD -->
+    <div class="hud">
+        <div class="score-panel">
+            <div class="score-label">得分</div>
+            <div class="score-value" id="score">0</div>
+        </div>
+        <div class="level-info">
+            <div class="level-title" id="levelTitle">🌟 第一关</div>
+            <div class="level-num" id="levelNum">Level 1</div>
+        </div>
+    </div>
+    
+    <div class="health-bar">
+        <div class="health-label">❤️ 生命值</div>
+        <div class="health-bar-inner">
+            <div class="health-fill" id="healthFill" style="width: 100%;"></div>
+        </div>
+    </div>
+    
+    <div class="collectibles">
+        <span class="collect-icon">⭐</span>
+        <span class="collect-count" id="collectCount">0/10</span>
+    </div>
+    
+    <!-- 开始画面 -->
+    <div class="start-screen" id="startScreen">
+        <div class="game-title">🎮 3D平台跳跃</div>
+        <div class="game-subtitle">收集星星，挑战关卡，达到终点！</div>
+        <button class="start-btn" onclick="startGame()">开始游戏</button>
+        
+        <div class="controls-info">
+            <div class="control-item">
+                <div class="control-key">W A S D</div>
+                <div class="control-desc">移动</div>
+            </div>
+            <div class="control-item">
+                <div class="control-key">空格</div>
+                <div class="control-desc">跳跃</div>
+            </div>
+            <div class="control-item">
+                <div class="control-key">Shift</div>
+                <div class="control-desc">加速</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 游戏结束 -->
+    <div class="game-over" id="gameOver">
+        <div class="game-over-title" id="gameOverTitle">💀 游戏结束</div>
+        <div class="final-score" id="finalScore">最终得分: 0</div>
+        <button class="start-btn" onclick="restartGame()">重新开始</button>
+        <button class="start-btn" onclick="backToTitle()" style="background: rgba(255,255,255,0.1); color: #fff;">返回标题</button>
+    </div>
+    
+    <!-- 关卡切换 -->
+    <div class="level-transition" id="levelTransition">
+        <div class="level-text" id="levelText">🌟 第一关</div>
+    </div>
+    
+    <!-- 暂停菜单 -->
+    <div class="pause-menu" id="pauseMenu">
+        <div class="pause-title">⏸️ 暂停</div>
+        <button class="start-btn" onclick="resumeGame()">继续游戏</button>
+        <button class="start-btn" onclick="restartGame()" style="background: rgba(255,255,255,0.1); color: #fff;">重新开始</button>
+    </div>
+    
+    <div class="hint" id="hint">按空格跳跃，收集星星 ⭐</div>
+
+    <script>
+        // ==================== 游戏配置 ====================
+        const CONFIG = {
+            player: {
+                speed: 15,
+                jumpForce: 12,
+                maxHealth: 3,
+                gravity: -30
+            },
+            collectible: {
+                count: 10,
+                points: 100
+            },
+            enemy: {
+                speed: 3,
+                damage: 1
+            }
+        };
+        
+        // ==================== 游戏状态 ====================
+        let game = {
+            scene: null,
+            camera: null,
+            renderer: null,
+            world: null,
+            player: null,
+            playerBody: null,
+            platforms: [],
+            collectibles: [],
+            enemies: [],
+            particles: [],
+            
+            // 状态
+            isPlaying: false,
+            isPaused: false,
+            health: 3,
+            score: 0,
+            collected: 0,
+            currentLevel: 0,
+            velocity: { x: 0, z: 0 },
+            canJump: false,
+            
+            // 输入
+            keys: {},
+            
+            // 关卡数据
+            levels: [
+                {
+                    name: "🌟 第一关",
+                    title: "入门",
+                    platforms: [
+                        { x: 0, y: -1, z: 0, w: 20, h: 2, d: 20, color: 0x2d3436 },
+                        { x: 15, y: 1, z: 10, w: 8, h: 1, d: 8, color: 0x00ff88 },
+                        { x: -10, y: 3, z: 5, w: 6, h: 1, d: 6, color: 0x00ccff },
+                        { x: 5, y: 5, z: -5, w: 6, h: 1, d: 6, color: 0xffd700 },
+                        { x: -15, y: 7, z: 0, w: 8, h: 1, d: 8, color: 0xff6b81 },
+                        { x: 0, y: 9, z: 15, w: 10, h: 1, d: 10, color: 0xa55eea }
+                    ],
+                    collectibles: [
+                        { x: 15, y: 2.5, z: 10 },
+                        { x: -10, y: 4.5, z: 5 },
+                        { x: 5, y: 6.5, z: -5 },
+                        { x: -15, y: 8.5, z: 0 },
+                        { x: 0, y: 2, z: 5 },
+                        { x: 10, y: 2.5, z: 0 },
+                        { x: -5, y: 3.5, z: 10 },
+                        { x: 8, y: 4.5, z: 8 },
+                        { x: -12, y: 5.5, z: -3 },
+                        { x: 3, y: 10.5, z: 15 }
+                    ],
+                    enemies: [],
+                    exit: { x: 0, y: 10.5, z: 15 }
+                },
+                {
+                    name: "🌊 第二关",
+                    title: "进阶",
+                    platforms: [
+                        { x: 0, y: -1, z: 0, w: 15, h: 2, d: 15, color: 0x2d3436 },
+                        { x: 12, y: 1, z: 0, w: 5, h: 1, d: 5, color: 0x00ff88 },
+                        { x: 20, y: 3, z: 8, w: 5, h: 1, d: 5, color: 0x00ccff },
+                        { x: 10, y: 5, z: 15, w: 6, h: 1, d: 6, color: 0xffd700 },
+                        { x: -5, y: 7, z: 10, w: 5, h: 1, d: 5, color: 0xff6b81 },
+                        { x: -15, y: 9, z: 0, w: 6, h: 1, d: 6, color: 0xa55eea },
+                        { x: -5, y: 11, z: -10, w: 5, h: 1, d: 5, color: 0x3742fa },
+                        { x: 10, y: 13, z: -15, w: 8, h: 1, d: 8, color: 0xff4757 }
+                    ],
+                    collectibles: [
+                        { x: 12, y: 2.5, z: 0 },
+                        { x: 20, y: 4.5, z: 8 },
+                        { x: 10, y: 6.5, z: 15 },
+                        { x: -5, y: 8.5, z: 10 },
+                        { x: -15, y: 10.5, z: 0 },
+                        { x: -5, y: 12.5, z: -10 },
+                        { x: 5, y: 2, z: -5 },
+                        { x: 15, y: 3.5, z: 5 },
+                        { x: 0, y: 5, z: 5 },
+                        { x: 10, y: 14.5, z: -15 }
+                    ],
+                    enemies: [
+                        { x: 10, y: 0.5, z: 10, range: 5 },
+                        { x: -5, y: 8.5, z: 10, range: 4 }
+                    ],
+                    exit: { x: 10, y: 14.5, z: -15 }
+                },
+                {
+                    name: "🔥 第三关",
+                    title: "挑战",
+                    platforms: [
+                        { x: 0, y: -1, z: 0, w: 12, h: 2, d: 12, color: 0x2d3436 },
+                        { x: 10, y: 1, z: 5, w: 4, h: 1, d: 4, color: 0x00ff88 },
+                        { x: 18, y: 3, z: 0, w: 4, h: 1, d: 4, color: 0x00ccff },
+                        { x: 10, y: 5, z: -8, w: 4, h: 1, d: 4, color: 0xffd700 },
+                        { x: 0, y: 7, z: -15, w: 4, h: 1, d: 4, color: 0xff6b81 },
+                        { x: -12, y: 9, z: -8, w: 4, h: 1, d: 4, color: 0xa55eea },
+                        { x: -18, y: 11, z: 0, w: 4, h: 1, d: 4, color: 0x3742fa },
+                        { x: -10, y: 13, z: 10, w: 5, h: 1, d: 5, color: 0xff4757 },
+                        { x: 5, y: 15, z: 18, w: 6, h: 1, d: 6, color: 0xff8c00 }
+                    ],
+                    collectibles: [
+                        { x: 10, y: 2.5, z: 5 },
+                        { x: 18, y: 4.5, z: 0 },
+                        { x: 10, y: 6.5, z: -8 },
+                        { x: 0, y: 8.5, z: -15 },
+                        { x: -12, y: 10.5, z: -8 },
+                        { x: -18, y: 12.5, z: 0 },
+                        { x: -10, y: 14.5, z: 10 },
+                        { x: 5, y: 16.5, z: 18 },
+                        { x: 5, y: 1, z: 5 },
+                        { x: -5, y: 3, z: -3 }
+                    ],
+                    enemies: [
+                        { x: 10, y: 0.5, z: 0, range: 4 },
+                        { x: 0, y: 6.5, z: -15, range: 3 },
+                        { x: -10, y: 12.5, z: 10, range: 4 }
+                    ],
+                    exit: { x: 5, y: 16.5, z: 18 }
+                }
+            ]
+        };
+        
+        // ==================== 初始化 ====================
+        function init() {
+            // Three.js 场景
+            game.scene = new THREE.Scene();
+            game.scene.background = new THREE.Color(0x1a1a2e);
+            game.scene.fog = new THREE.Fog(0x1a1a2e, 30, 80);
+            
+            // 相机
+            game.camera = new THREE.PerspectiveCamera(
+                60, window.innerWidth / window.innerHeight, 0.1, 1000
+            );
+            game.camera.position.set(0, 15, 20);
+            
+            // 渲染器
+            game.renderer = new THREE.WebGLRenderer({ antialias: true });
+            game.renderer.setSize(window.innerWidth, window.innerHeight);
+            game.renderer.shadowMap.enabled = true;
+            document.getElementById('game-container').appendChild(game.renderer.domElement);
+            
+            // Cannon.js 物理世界
+            game.world = new CANNON.World();
+            game.world.gravity.set(0, CONFIG.player.gravity, 0);
+            game.world.broadphase = new CANNON.NaiveBroadphase();
+            game.world.solver.iterations = 10;
+            
+            // 光照
+            setupLights();
+            
+            // 创建玩家
+            createPlayer();
+            
+            // 事件监听
+            setupControls();
+            
+            // 窗口调整
+            window.addEventListener('resize', onResize);
+            
+            // 动画循环
+            animate();
+        }
+        
+        function setupLights() {
+            // 环境光
+            const ambient = new THREE.AmbientLight(0x404040, 0.6);
+            game.scene.add(ambient);
+            
+            // 主方向光
+            const directional = new THREE.DirectionalLight(0xffffff, 0.8);
+            directional.position.set(20, 40, 20);
+            directional.castShadow = true;
+            directional.shadow.mapSize.width = 2048;
+            directional.shadow.mapSize.height = 2048;
+            directional.shadow.camera.near = 0.5;
+            directional.shadow.camera.far = 100;
+            directional.shadow.camera.left = -30;
+            directional.shadow.camera.right = 30;
+            directional.shadow.camera.top = 30;
+            directional.shadow.camera.bottom = -30;
+            game.scene.add(directional);
+            
+            // 彩色点光源
+            const colors = [0xff4757, 0x00ff88, 0x00ccff, 0xffd700];
+            colors.forEach((color, i) => {
+                const light = new THREE.PointLight(color, 0.4, 40);
+                const angle = (i / colors.length) * Math.PI * 2;
+                light.position.set(
+                    Math.cos(angle) * 20,
+                    15,
+                    Math.sin(angle) * 20
+                );
+                game.scene.add(light);
+            });
+        }
+        
+        function createPlayer() {
+            // 玩家模型
+            const group = new THREE.Group();
+            
+            // 身体
+            const bodyGeo = new THREE.CapsuleGeometry(0.5, 1, 8, 16);
+            const bodyMat = new THREE.MeshStandardMaterial({ 
+                color: 0x00ff88,
+                roughness: 0.3,
+                metalness: 0.2,
+                emissive: 0x00ff88,
+                emissiveIntensity: 0.2
+            });
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            body.position.y = 1;
+            body.castShadow = true;
+            group.add(body);
+            
+            // 眼睛
+            const eyeGeo = new THREE.SphereGeometry(0.12, 8, 8);
+            const eyeMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+            const eye1 = new THREE.Mesh(eyeGeo, eyeMat);
+            eye1.position.set(0.2, 1.3, 0.4);
+            group.add(eye1);
+            const eye2 = new THREE.Mesh(eyeGeo, eyeMat);
+            eye2.position.set(-0.2, 1.3, 0.4);
+            group.add(eye2);
+            
+            // 瞳孔
+            const pupilGeo = new THREE.SphereGeometry(0.06, 8, 8);
+            const pupilMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+            const pupil1 = new THREE.Mesh(pupilGeo, pupilMat);
+            pupil1.position.set(0.2, 1.3, 0.5);
+            group.add(pupil1);
+            const pupil2 = new THREE.Mesh(pupilGeo, pupilMat);
+            pupil2.position.set(-0.2, 1.3, 0.5);
+            group.add(pupil2);
+            
+            group.position.set(0, 3, 0);
+            game.scene.add(group);
+            game.player = group;
+            
+            // 物理身体
+            const shape = new CANNON.Sphere(0.5);
+            game.playerBody = new CANNON.Body({
+                mass: 1,
+                position: new CANNON.Vec3(0, 3, 0),
+                shape: shape,
+                linearDamping: 0.9,
+                angularDamping: 0.99
+            });
+            game.world.addBody(game.playerBody);
+        }
+        
+        function loadLevel(levelIndex) {
+            const level = game.levels[levelIndex];
+            
+            // 清除旧关卡
+            clearLevel();
+            
+            // 创建平台
+            level.platforms.forEach(p => createPlatform(p));
+            
+            // 创建收集品
+            level.collectibles.forEach((c, i) => createCollectible(c, i));
+            
+            // 创建敌人
+            level.enemies.forEach(e => createEnemy(e));
+            
+            // 更新UI
+            document.getElementById('levelTitle').textContent = level.name;
+            document.getElementById('levelNum').textContent = `Level ${levelIndex + 1}`;
+            document.getElementById('collectCount').textContent = `0/${level.collectibles.length}`;
+            
+            // 重置玩家
+            game.playerBody.position.set(0, 3, 0);
+            game.playerBody.velocity.set(0, 0, 0);
+            game.health = CONFIG.player.maxHealth;
+            updateHealthUI();
+        }
+        
+        function clearLevel() {
+            // 清除平台
+            game.platforms.forEach(p => {
+                game.scene.remove(p.mesh);
+                game.world.removeBody(p.body);
+            });
+            game.platforms = [];
+            
+            // 清除收集品
+            game.collectibles.forEach(c => {
+                game.scene.remove(c.mesh);
+            });
+            game.collectibles = [];
+            
+            // 清除敌人
+            game.enemies.forEach(e => {
+                game.scene.remove(e.mesh);
+            });
+            game.enemies = [];
+        }
+        
+        function createPlatform(data) {
+            // 视觉模型
+            const geo = new THREE.BoxGeometry(data.w, data.h, data.d);
+            const mat = new THREE.MeshStandardMaterial({
+                color: data.color,
+                roughness: 0.7,
+                metalness: 0.3
+            });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.set(data.x, data.y, data.z);
+            mesh.receiveShadow = true;
+            mesh.castShadow = true;
+            game.scene.add(mesh);
+            
+            // 物理身体
+            const shape = new CANNON.Box(new CANNON.Vec3(data.w/2, data.h/2, data.d/2));
+            const body = new CANNON.Body({
+                mass: 0,
+                position: new CANNON.Vec3(data.x, data.y, data.z),
+                shape: shape
+            });
+            game.world.addBody(body);
+            
+            game.platforms.push({ mesh, body });
+        }
+        
+        function createCollectible(data, index) {
+            const geo = new THREE.OctahedronGeometry(0.4);
+            const mat = new THREE.MeshStandardMaterial({
+                color: 0xffd700,
+                emissive: 0xffd700,
+                emissiveIntensity: 0.5,
+                roughness: 0.2,
+                metalness: 0.8
+            });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.set(data.x, data.y, data.z);
+            mesh.castShadow = true;
+            game.scene.add(mesh);
+            
+            // 添加光晕
+            const glowGeo = new THREE.SphereGeometry(0.6);
+            const glowMat = new THREE.MeshBasicMaterial({
+                color: 0xffd700,
+                transparent: true,
+                opacity: 0.3
+            });
+            const glow = new THREE.Mesh(glowGeo, glowMat);
+            mesh.add(glow);
+            
+            game.collectibles.push({
+                mesh,
+                collected: false,
+                originalY: data.y,
+                baseY: data.y
+            });
+        }
+        
+        function createEnemy(data) {
+            const geo = new THREE.BoxGeometry(1, 1, 1);
+            const mat = new THREE.MeshStandardMaterial({
+                color: 0xff4757,
+                emissive: 0xff4757,
+                emissiveIntensity: 0.3,
+                roughness: 0.5,
+                metalness: 0.5
+            });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.set(data.x, data.y + 0.5, data.z);
+            mesh.castShadow = true;
+            game.scene.add(mesh);
+            
+            game.enemies.push({
+                mesh,
+                data,
+                direction: 1,
+                time: 0
+            });
+        }
+        
+        // ==================== 控制 ====================
+        function setupControls() {
+            document.addEventListener('keydown', e => {
+                game.keys[e.key.toLowerCase()] = true;
+                if (e.key === ' ') {
+                    e.preventDefault();
+                    if (game.isPlaying && game.canJump) {
+                        jump();
+                    }
+                }
+                if (e.key === 'Escape' && game.isPlaying) {
+                    togglePause();
+                }
+            });
+            
+            document.addEventListener('keyup', e => {
+                game.keys[e.key.toLowerCase()] = false;
+            });
+        }
+        
+        function jump() {
+            game.playerBody.velocity.y = CONFIG.player.jumpForce;
+            game.canJump = false;
+            
+            // 跳跃粒子效果
+            createJumpEffect();
+        }
+        
+        function movePlayer() {
+            if (!game.isPlaying || game.isPaused) return;
+            
+            const speed = game.keys['shift'] ? CONFIG.player.speed * 1.5 : CONFIG.player.speed;
+            
+            game.velocity.x = 0;
+            game.velocity.z = 0;
+            
+            if (game.keys['w']) game.velocity.z = -speed;
+            if (game.keys['s']) game.velocity.z = speed;
+            if (game.keys['a']) game.velocity.x = -speed;
+            if (game.keys['d']) game.velocity.x = speed;
+            
+            // 应用水平速度
+            game.playerBody.velocity.x = game.velocity.x;
+            game.playerBody.velocity.z = game.velocity.z;
+        }
+        
+        function checkGround() {
+            // 检测是否在地面上
+            const rayStart = game.playerBody.position.clone();
+            rayStart.y -= 0.5;
+            const rayEnd = rayStart.clone();
+            rayEnd.y -= 0.5;
+            
+            // 简单检测
+            if (game.playerBody.velocity.y <= 0.1 && game.playerBody.velocity.y >= -0.1) {
+                // 检测与平台碰撞
+                game.platforms.forEach(p => {
+                    const pos = game.playerBody.position;
+                    const pPos = p.body.position;
+                    const half = new CANNON.Vec3(
+                        p.body.shapes[0].halfExtents.x,
+                        p.body.shapes[0].halfExtents.y,
+                        p.body.shapes[0].halfExtents.z
+                    );
+                    
+                    if (Math.abs(pos.x - pPos.x) < half.x + 0.5 &&
+                        Math.abs(pos.z - pPos.z) < half.z + 0.5 &&
+                        pos.y - 0.5 <= pPos.y + half.y &&
+                        pos.y - 0.5 >= pPos.y + half.y - 0.5) {
+                        game.canJump = true;
+                    }
+                });
+            }
+            
+            // 掉落检测
+            if (game.playerBody.position.y < -10) {
+                playerFall();
+            }
+        }
+        
+        function playerFall() {
+            game.health--;
+            updateHealthUI();
+            
+            if (game.health <= 0) {
+                gameOver();
+            } else {
+                // 重生
+                game.playerBody.position.set(0, 5, 0);
+                game.playerBody.velocity.set(0, 0, 0);
+            }
+        }
+        
+        function updateHealthUI() {
+            const percent = (game.health / CONFIG.player.maxHealth) * 100;
+            document.getElementById('healthFill').style.width = percent + '%';
+        }
+        
+        // ==================== 碰撞检测 ====================
+        function checkCollisions() {
+            const playerPos = game.playerBody.position;
+            
+            // 收集品碰撞
+            game.collectibles.forEach((c, i) => {
+                if (!c.collected) {
+                    const dist = playerPos.distanceTo(new CANNON.Vec3(
+                        c.mesh.position.x,
+                        c.mesh.position.y,
+                        c.mesh.position.z
+                    ));
+                    
+                    if (dist < 1) {
+                        collectItem(i);
+                    }
+                }
+            });
+            
+            // 敌人碰撞
+            game.enemies.forEach(e => {
+                const enemyPos = new CANNON.Vec3(
+                    e.mesh.position.x,
+                    e.mesh.position.y,
+                    e.mesh.position.z
+                );
+                const dist = playerPos.distanceTo(enemyPos);
+                
+                if (dist < 1.2) {
+                    playerFall();
+                }
+            });
+            
+            // 终点检测
+            const level = game.levels[game.currentLevel];
+            const exitPos = new CANNON.Vec3(level.exit.x, level.exit.y, level.exit.z);
+            if (playerPos.distanceTo(exitPos) < 2) {
+                levelComplete();
+            }
+        }
+        
+        function collectItem(index) {
+            const item = game.collectibles[index];
+            item.collected = true;
+            
+            // 动画效果
+            createCollectEffect(item.mesh.position);
+            
+            // 移除
+            game.scene.remove(item.mesh);
+            
+            // 更新分数
+            game.collected++;
+            game.score += CONFIG.collectible.points;
+            document.getElementById('score').textContent = game.score;
+            document.getElementById('collectCount').textContent = 
+                `${game.collected}/${game.levels[game.currentLevel].collectibles.length}`;
+        }
+        
+        function levelComplete() {
+            game.currentLevel++;
+            
+            if (game.currentLevel >= game.levels.length) {
+                victory();
+                return;
+            }
+            
+            // 显示关卡切换
+            const level = game.levels[game.currentLevel];
+            document.getElementById('levelText').textContent = level.name;
+            document.getElementById('levelTransition').classList.add('active');
+            
+            game.isPaused = true;
+            
+            setTimeout(() => {
+                document.getElementById('levelTransition').classList.remove('active');
+                loadLevel(game.currentLevel);
+                game.isPaused = false;
+            }, 2000);
+        }
+        
+        // ==================== 敌人AI ====================
+        function updateEnemies() {
+            game.enemies.forEach(e => {
+                e.time += 0.02;
+                
+                // 简单巡逻
+                const range = e.data.range;
+                e.mesh.position.x = e.data.x + Math.sin(e.time) * range;
+                
+                // 旋转动画
+                e.mesh.rotation.y += 0.02;
+                e.mesh.rotation.x += 0.01;
+            });
+        }
+        
+        // ==================== 收集品动画 ====================
+        function animateCollectibles() {
+            const time = Date.now() * 0.002;
+            
+            game.collectibles.forEach(c => {
+                if (!c.collected) {
+                    c.mesh.rotation.y += 0.02;
+                    c.mesh.position.y = c.baseY + Math.sin(time + c.originalY) * 0.2;
+                }
+            });
+        }
+        
+        // ==================== 粒子效果 ====================
+        function createCollectEffect(position) {
+            for (let i = 0; i < 15; i++) {
+                const geo = new THREE.SphereGeometry(0.1, 4, 4);
+                const mat = new THREE.MeshBasicMaterial({ color: 0xffd700 });
+                const particle = new THREE.Mesh(geo, mat);
+                particle.position.copy(position);
+                particle.userData = {
+                    velocity: new THREE.Vector3(
+                        (Math.random() - 0.5) * 0.3,
+                        Math.random() * 0.2,
+                        (Math.random() - 0.5) * 0.3
+                    ),
+                    life: 1
+                };
+                game.scene.add(particle);
+                game.particles.push(particle);
+            }
+        }
+        
+        function createJumpEffect() {
+            const geo = new THREE.RingGeometry(0.5, 0.8, 16);
+            const mat = new THREE.MeshBasicMaterial({ 
+                color: 0x00ff88, 
+                transparent: true, 
+                opacity: 0.8,
+                side: THREE.DoubleSide
+            });
+            const ring = new THREE.Mesh(geo, mat);
+            ring.position.copy(game.player.position);
+            ring.rotation.x = -Math.PI / 2;
+            ring.position.y -= 0.5;
+            ring.userData = { life: 1 };
+            game.scene.add(ring);
+            game.particles.push(ring);
+        }
+        
+        function updateParticles() {
+            for (let i = game.particles.length - 1; i >= 0; i--) {
+                const p = game.particles[i];
+                
+                if (p.userData.velocity) {
+                    p.position.add(p.userData.velocity);
+                    p.userData.velocity.y -= 0.01;
+                }
+                
+                p.userData.life -= 0.03;
+                p.scale.setScalar(p.userData.life);
+                p.material.opacity = p.userData.life;
+                
+                if (p.userData.life <= 0) {
+                    game.scene.remove(p);
+                    game.particles.splice(i, 1);
+                }
+            }
+        }
+        
+        // ==================== 相机跟随 ====================
+        function updateCamera() {
+            const targetPos = game.player.position.clone();
+            targetPos.y += 8;
+            targetPos.z += 15;
+            
+            game.camera.position.lerp(targetPos, 0.1);
+            game.camera.lookAt(game.player.position);
+        }
+        
+        // ==================== 游戏流程 ====================
+        function startGame() {
+            document.getElementById('startScreen').style.display = 'none';
+            document.getElementById('gameOver').classList.remove('active');
+            
+            // 重置状态
+            game.isPlaying = true;
+            game.isPaused = false;
+            game.health = CONFIG.player.maxHealth;
+            game.score = 0;
+            game.collected = 0;
+            game.currentLevel = 0;
+            
+            document.getElementById('score').textContent = '0';
+            updateHealthUI();
+            
+            loadLevel(0);
+        }
+        
+        function gameOver() {
+            game.isPlaying = false;
+            document.getElementById('gameOver').classList.add('active');
+            document.getElementById('gameOverTitle').textContent = '💀 游戏结束';
+            document.getElementById('gameOverTitle').className = 'game-over-title';
+            document.getElementById('finalScore').textContent = `最终得分: ${game.score}`;
+        }
+        
+        function victory() {
+            game.isPlaying = false;
+            document.getElementById('gameOver').classList.add('active');
+            document.getElementById('gameOverTitle').textContent = '🎉 通关成功！';
+            document.getElementById('gameOverTitle').className = 'game-over-title victory-title';
+            document.getElementById('finalScore').textContent = `最终得分: ${game.score} | ⭐ 收集: ${game.collected}`;
+        }
+        
+        function restartGame() {
+            document.getElementById('gameOver').classList.remove('active');
+            document.getElementById('pauseMenu').classList.remove('active');
+            startGame();
+        }
+        
+        function backToTitle() {
+            document.getElementById('gameOver').classList.remove('active');
+            document.getElementById('startScreen').style.display = 'flex';
+            game.isPlaying = false;
+        }
+        
+        function togglePause() {
+            game.isPaused = !game.isPaused;
+            document.getElementById('pauseMenu').classList.toggle('active', game.isPaused);
+        }
+        
+        function resumeGame() {
+            game.isPaused = false;
+            document.getElementById('pauseMenu').classList.remove('active');
+        }
+        
+        // ==================== 主循环 ====================
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            if (game.isPlaying && !game.isPaused) {
+                // 更新物理
+                game.world.step(1/60);
+                
+                // 玩家移动
+                movePlayer();
+                checkGround();
+                
+                // 同步视觉
+                game.player.position.copy(game.playerBody.position);
+                game.player.position.y -= 0.5;
+                
+                // 更新敌人
+                updateEnemies();
+                
+                // 收集品动画
+                animateCollectibles();
+                
+                // 碰撞检测
+                checkCollisions();
+                
+                // 粒子
+                updateParticles();
+                
+                // 相机
+                updateCamera();
+            }
+            
+            game.renderer.render(game.scene, game.camera);
+        }
+        
+        function onResize() {
+            game.camera.aspect = window.innerWidth / window.innerHeight;
+            game.camera.updateProjectionMatrix();
+            game.renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        
+        // ==================== 启动 ====================
+        init();
+    </script>
+</body>
+</html>
