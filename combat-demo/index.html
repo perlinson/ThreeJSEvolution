@@ -1,0 +1,1133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>⚔️ Three.js AI 战斗系统演示</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            background: #0f0f23;
+            overflow: hidden;
+        }
+        #game-container {
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        /* HUD */
+        .hud {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            background: linear-gradient(180deg, rgba(0,0,0,0.7) 0%, transparent 100%);
+            z-index: 100;
+        }
+        .player-hud {
+            display: flex;
+            gap: 20px;
+        }
+        .stat-bar {
+            width: 200px;
+            background: rgba(0,0,0,0.5);
+            border-radius: 10px;
+            padding: 10px;
+        }
+        .stat-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+        .bar-bg {
+            height: 8px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .bar-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.3s;
+        }
+        .hp-fill { background: linear-gradient(90deg, #ff4757, #ff6b81); }
+        .mp-fill { background: linear-gradient(90deg, #3742fa, #5352ed); }
+        .exp-fill { background: linear-gradient(90deg, #ffd700, #ffa502); }
+        
+        .enemy-hud {
+            text-align: right;
+        }
+        .enemy-name {
+            font-size: 14px;
+            color: #ff4757;
+            margin-bottom: 5px;
+        }
+        
+        /* 控制面板 */
+        .controls {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.7);
+            border-radius: 12px;
+            padding: 15px;
+            z-index: 100;
+        }
+        .controls h3 {
+            color: #00ff88;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        .skill-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+        .skill-btn {
+            width: 60px;
+            height: 60px;
+            border: 2px solid rgba(255,255,255,0.3);
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            transition: all 0.3s;
+            position: relative;
+        }
+        .skill-btn:hover {
+            border-color: #00ff88;
+            transform: scale(1.05);
+        }
+        .skill-btn:active {
+            transform: scale(0.95);
+        }
+        .skill-btn.cooldown::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            border-radius: 6px;
+        }
+        .skill-cooldown {
+            position: absolute;
+            font-size: 14px;
+            color: #fff;
+            font-weight: bold;
+        }
+        .skill-name {
+            font-size: 8px;
+            color: #888;
+            margin-top: 2px;
+        }
+        
+        /* 信息面板 */
+        .info-panel {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.7);
+            border-radius: 12px;
+            padding: 15px;
+            z-index: 100;
+            max-width: 250px;
+        }
+        .info-title {
+            color: #00ff88;
+            font-size: 12px;
+            margin-bottom: 10px;
+        }
+        .log-item {
+            font-size: 11px;
+            color: #ccc;
+            padding: 3px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .log-item.damage { color: #ff4757; }
+        .log-item.heal { color: #00ff88; }
+        .log-item.skill { color: #00ccff; }
+        .log-item.enemy { color: #ffd700; }
+        
+        /* 快捷键提示 */
+        .hotkeys {
+            position: fixed;
+            top: 100px;
+            right: 20px;
+            background: rgba(0,0,0,0.7);
+            border-radius: 12px;
+            padding: 15px;
+            z-index: 100;
+            font-size: 11px;
+        }
+        .hotkey {
+            display: flex;
+            justify-content: space-between;
+            gap: 15px;
+            padding: 3px 0;
+        }
+        .key {
+            background: rgba(255,255,255,0.2);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        
+        /* 游戏结束弹窗 */
+        .game-over {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.9);
+            border: 2px solid #ff4757;
+            border-radius: 16px;
+            padding: 30px;
+            text-align: center;
+            z-index: 200;
+            display: none;
+        }
+        .game-over h2 {
+            color: #ff4757;
+            font-size: 32px;
+            margin-bottom: 20px;
+        }
+        .game-over.victory h2 {
+            color: #00ff88;
+        }
+        .game-over button {
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #00ff88, #00ccff);
+            border: none;
+            border-radius: 8px;
+            color: #000;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        /* 波数提示 */
+        .wave-announce {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 48px;
+            font-weight: bold;
+            color: #ffd700;
+            text-shadow: 0 0 20px rgba(255,215,0,0.5);
+            z-index: 150;
+            display: none;
+            animation: pulse 0.5s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-50%, -50%) scale(1.1); }
+        }
+        
+        /* 技能特效层 */
+        .effect-layer {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 50;
+        }
+        .particle {
+            position: absolute;
+            border-radius: 50%;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container"></div>
+    
+    <!-- HUD -->
+    <div class="hud">
+        <div class="player-hud">
+            <div class="stat-bar">
+                <div class="stat-label">
+                    <span>❤️ 生命值</span>
+                    <span id="hp-text">100/100</span>
+                </div>
+                <div class="bar-bg">
+                    <div class="bar-fill hp-fill" id="hp-bar" style="width: 100%"></div>
+                </div>
+            </div>
+            <div class="stat-bar">
+                <div class="stat-label">
+                    <span>💧 法力值</span>
+                    <span id="mp-text">50/50</span>
+                </div>
+                <div class="bar-bg">
+                    <div class="bar-fill mp-fill" id="mp-bar" style="width: 100%"></div>
+                </div>
+            </div>
+            <div class="stat-bar">
+                <div class="stat-label">
+                    <span>⚡ 经验值</span>
+                    <span id="exp-text">0/100</span>
+                </div>
+                <div class="bar-bg">
+                    <div class="bar-fill exp-fill" id="exp-bar" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+        <div class="enemy-hud">
+            <div class="enemy-name" id="enemy-name">敌人名称</div>
+            <div class="stat-bar" style="width: 200px;">
+                <div class="bar-bg">
+                    <div class="bar-fill hp-fill" id="enemy-hp-bar" style="width: 100%"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 控制面板 -->
+    <div class="controls">
+        <h3>⚔️ 技能 (Q/W/E/R/A/S/D)</h3>
+        <div class="skill-grid">
+            <button class="skill-btn" onclick="useSkill(0)" id="skill-0" style="border-color: #ff4757;">
+                🔥
+                <span class="skill-name">火焰弹</span>
+            </button>
+            <button class="skill-btn" onclick="useSkill(1)" id="skill-1" style="border-color: #3742fa;">
+                ❄️
+                <span class="skill-name">冰冻术</span>
+            </button>
+            <button class="skill-btn" onclick="useSkill(2)" id="skill-2" style="border-color: #00ff88;">
+                ⚡
+                <span class="skill-name">雷击</span>
+            </button>
+            <button class="skill-btn" onclick="useSkill(3)" id="skill-3" style="border-color: #ffd700;">
+                ✨
+                <span class="skill-name">治疗术</span>
+            </button>
+            <button class="skill-btn" onclick="useSkill(4)" id="skill-4" style="border-color: #ff6b81;">
+                💀
+                <span class="skill-name">暗影箭</span>
+            </button>
+            <button class="skill-btn" onclick="useSkill(5)" id="skill-5" style="border-color: #ffa502;">
+                🌟
+                <span class="skill-name">必杀技</span>
+            </button>
+            <button class="skill-btn" onclick="useSkill(6)" id="skill-6" style="border-color: #ced6e0;">
+                🛡️
+                <span class="skill-name">防御</span>
+            </button>
+            <button class="skill-btn" onclick="useSkill(7)" id="skill-7" style="border-color: #ff4757;">
+                💥
+                <span class="skill-name">普通攻击</span>
+            </button>
+        </div>
+    </div>
+    
+    <!-- 信息面板 -->
+    <div class="info-panel">
+        <div class="info-title">📜 战斗日志</div>
+        <div id="combat-log">
+            <div class="log-item">⚔️ 战斗开始！</div>
+        </div>
+    </div>
+    
+    <!-- 快捷键提示 -->
+    <div class="hotkeys">
+        <div class="hotkey"><span>移动</span> <span class="key">W A S D</span></div>
+        <div class="hotkey"><span>攻击</span> <span class="key">J</span></div>
+        <div class="hotkey"><span>闪避</span> <span class="key">K</span></div>
+        <div class="hotkey"><span>技能1-4</span> <span class="key">1-4</span></div>
+    </div>
+    
+    <!-- 波数公告 -->
+    <div class="wave-announce" id="wave-announce">第 1 波</div>
+    
+    <!-- 游戏结束 -->
+    <div class="game-over" id="game-over">
+        <h2 id="game-over-text">游戏结束</h2>
+        <div id="game-over-stats"></div>
+        <button onclick="restartGame()">重新开始</button>
+    </div>
+    
+    <!-- 特效层 -->
+    <div class="effect-layer" id="effect-layer"></div>
+
+    <script>
+        // ==================== 游戏配置 ====================
+        const CONFIG = {
+            player: {
+                hp: 100,
+                mp: 50,
+                exp: 0,
+                maxHp: 100,
+                maxMp: 50,
+                speed: 0.3,
+                attack: 10,
+                defense: 5
+            },
+            skills: [
+                { name: '火焰弹', damage: 25, mp: 10, cooldown: 3, color: '#ff4757', effect: 'fire' },
+                { name: '冰冻术', damage: 15, mp: 15, cooldown: 5, color: '#3742fa', effect: 'ice' },
+                { name: '雷击', damage: 30, mp: 20, cooldown: 8, color: '#00ff88', effect: 'thunder' },
+                { name: '治疗术', heal: 30, mp: 15, cooldown: 10, color: '#00ccff', effect: 'heal' },
+                { name: '暗影箭', damage: 40, mp: 25, cooldown: 12, color: '#ff6b81', effect: 'shadow' },
+                { name: '必杀技', damage: 80, mp: 40, cooldown: 30, color: '#ffa502', effect: 'ultimate' },
+                { name: '防御', effect: 'defense', duration: 3, cooldown: 15 },
+                { name: '普通攻击', damage: 15, cooldown: 1, effect: 'attack' }
+            ],
+            enemies: [
+                { name: '👾 史莱姆', hp: 50, attack: 5, speed: 0.1, exp: 20, color: '#7bed9f' },
+                { name: '👹 哥布林', hp: 80, attack: 10, speed: 0.15, exp: 35, color: '#ffa502' },
+                { name: '💀 骷髅战士', hp: 120, attack: 15, speed: 0.12, exp: 50, color: '#ced6e0' },
+                { name: '🐉 火焰龙', hp: 200, attack: 25, speed: 0.18, exp: 100, color: '#ff4757' },
+                { name: '😈 恶魔领主', hp: 300, attack: 35, speed: 0.2, exp: 200, color: '#6c5ce7' }
+            ],
+            waves: [
+                { count: 3, enemies: [0] },
+                { count: 5, enemies: [0, 1] },
+                { count: 8, enemies: [0, 1, 2] },
+                { count: 10, enemies: [1, 2, 3] },
+                { count: 1, enemies: [4] }
+            ]
+        };
+        
+        // ==================== 游戏状态 ====================
+        let scene, camera, renderer;
+        let player, playerBody;
+        let enemies = [];
+        let currentWave = 0;
+        let enemiesInWave = 0;
+        let isDefending = false;
+        let gameRunning = true;
+        let skillCooldowns = [0, 0, 0, 0, 0, 0, 0, 0];
+        let keys = {};
+        let projectiles = [];
+        let particles = [];
+        
+        // ==================== 初始化 ====================
+        function init() {
+            // Three.js 场景
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x1a1a2e);
+            
+            // 相机
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 20, 30);
+            camera.lookAt(0, 0, 0);
+            
+            // 渲染器
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            document.getElementById('game-container').appendChild(renderer.domElement);
+            
+            // 光照
+            setupLights();
+            
+            // 创建场景
+            createGround();
+            
+            // 创建玩家
+            createPlayer();
+            
+            // 事件监听
+            setupControls();
+            
+            // 开始第一波
+            setTimeout(() => startWave(), 2000);
+            
+            // 游戏循环
+            animate();
+        }
+        
+        // ==================== 场景创建 ====================
+        function setupLights() {
+            const ambient = new THREE.AmbientLight(0x404040, 0.6);
+            scene.add(ambient);
+            
+            const directional = new THREE.DirectionalLight(0xffffff, 0.8);
+            directional.position.set(10, 20, 10);
+            directional.castShadow = true;
+            scene.add(directional);
+            
+            // 点光源
+            const colors = [0xff4757, 0x00ff88, 0x00ccff];
+            colors.forEach((color, i) => {
+                const light = new THREE.PointLight(color, 0.3, 50);
+                light.position.set(
+                    Math.cos(i * Math.PI * 2 / 3) * 20,
+                    10,
+                    Math.sin(i * Math.PI * 2 / 3) * 20
+                );
+                scene.add(light);
+            });
+        }
+        
+        function createGround() {
+            // 主地面
+            const groundGeo = new THREE.PlaneGeometry(100, 100);
+            const groundMat = new THREE.MeshStandardMaterial({ 
+                color: 0x2d3436, 
+                roughness: 0.8 
+            });
+            const ground = new THREE.Mesh(groundGeo, groundMat);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+            
+            // 网格
+            const grid = new THREE.GridHelper(100, 50, 0x00ff88, 0x333355);
+            grid.position.y = 0.01;
+            scene.add(grid);
+            
+            // 边界
+            createBoundary();
+        }
+        
+        function createBoundary() {
+            const wallMat = new THREE.MeshStandardMaterial({ 
+                color: 0x636e72,
+                transparent: true,
+                opacity: 0.3
+            });
+            const wallGeo = new THREE.BoxGeometry(100, 5, 1);
+            
+            const positions = [
+                { x: 0, z: -50, ry: 0 },
+                { x: 0, z: 50, ry: 0 },
+                { x: -50, z: 0, ry: Math.PI / 2 },
+                { x: 50, z: 0, ry: Math.PI / 2 }
+            ];
+            
+            positions.forEach(pos => {
+                const wall = new THREE.Mesh(wallGeo, wallMat);
+                wall.position.set(pos.x, 2.5, pos.z);
+                wall.rotation.y = pos.ry;
+                scene.add(wall);
+            });
+        }
+        
+        // ==================== 玩家 ====================
+        function createPlayer() {
+            // 玩家模型
+            const group = new THREE.Group();
+            
+            // 身体
+            const bodyGeo = new THREE.CapsuleGeometry(0.8, 1.5, 8, 16);
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0x00ff88 });
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            body.position.y = 1.3;
+            body.castShadow = true;
+            group.add(body);
+            
+            // 头
+            const headGeo = new THREE.SphereGeometry(0.6, 16, 16);
+            const headMat = new THREE.MeshStandardMaterial({ color: 0x00ccff });
+            const head = new THREE.Mesh(headGeo, headMat);
+            head.position.y = 2.8;
+            head.castShadow = true;
+            group.add(head);
+            
+            // 武器
+            const swordGeo = new THREE.BoxGeometry(0.2, 0.2, 2);
+            const swordMat = new THREE.MeshStandardMaterial({ color: 0xffd700 });
+            const sword = new THREE.Mesh(swordGeo, swordMat);
+            sword.position.set(1, 1.5, 0);
+            sword.rotation.z = Math.PI / 4;
+            group.add(sword);
+            
+            group.position.set(0, 0, 30);
+            scene.add(group);
+            player = group;
+            
+            // 物理身体
+            playerBody = new CANNON.Body({
+                mass: 1,
+                position: new CANNON.Vec3(0, 5, 30),
+                shape: new CANNON.Sphere(1)
+            });
+            playerBody.linearDamping = 0.9;
+        }
+        
+        // ==================== 敌人 ====================
+        function spawnEnemy(typeIndex) {
+            const enemyData = CONFIG.enemies[typeIndex];
+            const group = new THREE.Group();
+            
+            // 身体
+            let bodyGeo, bodyMat;
+            
+            if (typeIndex === 0) { // 史莱姆
+                bodyGeo = new THREE.SphereGeometry(1, 16, 16);
+                bodyMat = new THREE.MeshStandardMaterial({ color: enemyData.color });
+            } else if (typeIndex === 1) { // 哥布林
+                bodyGeo = new THREE.CapsuleGeometry(0.6, 1.2, 8);
+                bodyMat = new THREE.MeshStandardMaterial({ color: enemyData.color });
+            } else if (typeIndex === 2) { // 骷髅
+                bodyGeo = new THREE.BoxGeometry(1.2, 2, 0.8);
+                bodyMat = new THREE.MeshStandardMaterial({ color: enemyData.color });
+            } else if (typeIndex === 3) { // 龙
+                bodyGeo = new THREE.ConeGeometry(1.5, 3, 8);
+                bodyMat = new THREE.MeshStandardMaterial({ color: enemyData.color });
+            } else { // 恶魔
+                bodyGeo = new THREE.DodecahedronGeometry(1.3);
+                bodyMat = new THREE.MeshStandardMaterial({ color: enemyData.color });
+            }
+            
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            body.castShadow = true;
+            group.add(body);
+            
+            // 眼睛
+            const eyeGeo = new THREE.SphereGeometry(0.15, 8, 8);
+            const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+            const eye1 = new THREE.Mesh(eyeGeo, eyeMat);
+            eye1.position.set(0.3, 0.5, 0.8);
+            group.add(eye1);
+            const eye2 = new THREE.Mesh(eyeGeo, eyeMat);
+            eye2.position.set(-0.3, 0.5, 0.8);
+            group.add(eye2);
+            
+            // 随机位置
+            const angle = Math.random() * Math.PI * 2;
+            const distance = 20 + Math.random() * 20;
+            group.position.set(
+                Math.cos(angle) * distance,
+                0,
+                Math.sin(angle) * distance - 20
+            );
+            
+            scene.add(group);
+            
+            // 敌人数据
+            const enemy = {
+                mesh: group,
+                hp: enemyData.hp,
+                maxHp: enemyData.hp,
+                attack: enemyData.attack,
+                speed: enemyData.speed,
+                exp: enemyData.exp,
+                name: enemyData.name,
+                color: enemyData.color,
+                lastAttack: 0,
+                attackCooldown: 2000
+            };
+            
+            enemies.push(enemy);
+            enemiesInWave++;
+            
+            updateEnemyHUD(enemy);
+            return enemy;
+        }
+        
+        // ==================== 波次系统 ====================
+        function startWave() {
+            if (currentWave >= CONFIG.waves.length) {
+                victory();
+                return;
+            }
+            
+            const waveData = CONFIG.waves[currentWave];
+            
+            // 显示波数
+            const announce = document.getElementById('wave-announce');
+            announce.textContent = `第 ${currentWave + 1} 波`;
+            announce.style.display = 'block';
+            addLog(`🌊 第 ${currentWave + 1} 波开始！`, 'skill');
+            
+            setTimeout(() => {
+                announce.style.display = 'none';
+                
+                // 生成敌人
+                for (let i = 0; i < waveData.count; i++) {
+                    setTimeout(() => {
+                        if (!gameRunning) return;
+                        const type = waveData.enemies[Math.floor(Math.random() * waveData.enemies.length)];
+                        spawnEnemy(type);
+                    }, i * 500);
+                }
+            }, 1500);
+        }
+        
+        // ==================== 战斗系统 ====================
+        function useSkill(skillIndex) {
+            if (!gameRunning) return;
+            
+            const skill = CONFIG.skills[skillIndex];
+            
+            // 检查冷却
+            if (skillCooldowns[skillIndex] > 0) {
+                addLog(`❄️ ${skill.name} 还在冷却中`, 'enemy');
+                return;
+            }
+            
+            // 检查MP
+            if (skill.mp && CONFIG.player.mp < skill.mp) {
+                addLog(`💧 法力不足！`, 'enemy');
+                return;
+            }
+            
+            // 消耗MP
+            if (skill.mp) {
+                CONFIG.player.mp -= skill.mp;
+                updatePlayerHUD();
+            }
+            
+            // 设置冷却
+            skillCooldowns[skillIndex] = skill.cooldown;
+            startCooldown(skillIndex, skill.cooldown);
+            
+            // 执行技能
+            const target = findNearestEnemy();
+            
+            if (skill.effect === 'attack' || skill.effect === 'fire' || skill.effect === 'ice' || 
+                skill.effect === 'thunder' || skill.effect === 'shadow' || skill.effect === 'ultimate') {
+                
+                // 远程攻击
+                if (target) {
+                    createProjectile(target, skill);
+                    addLog(`✨ 释放 ${skill.name}！`, 'skill');
+                } else {
+                    addLog(`❌ 没有目标`, 'enemy');
+                }
+            } else if (skill.effect === 'heal') {
+                // 治疗
+                const healAmount = Math.min(skill.heal, CONFIG.player.maxHp - CONFIG.player.hp);
+                CONFIG.player.hp += skill.heal;
+                updatePlayerHUD();
+                createHealEffect();
+                addLog(`💚 恢复 ${skill.heal} HP！`, 'heal');
+            } else if (skill.effect === 'defense') {
+                // 防御姿态
+                isDefending = true;
+                CONFIG.player.defense *= 2;
+                addLog(`🛡️ 进入防御姿态！`, 'skill');
+                setTimeout(() => {
+                    isDefending = false;
+                    CONFIG.player.defense /= 2;
+                    addLog(`🛡️ 防御结束`, 'enemy');
+                }, skill.duration * 1000);
+            }
+        }
+        
+        function createProjectile(target, skill) {
+            const geo = new THREE.SphereGeometry(0.3, 8, 8);
+            const mat = new THREE.MeshBasicMaterial({ color: skill.color });
+            const projectile = new THREE.Mesh(geo, mat);
+            
+            const startPos = player.position.clone();
+            startPos.y = 2;
+            projectile.position.copy(startPos);
+            
+            projectile.userData = {
+                target: target,
+                damage: skill.damage,
+                effect: skill.effect,
+                speed: 0.8
+            };
+            
+            scene.add(projectile);
+            projectiles.push(projectile);
+        }
+        
+        function createHitEffect(position, color) {
+            // 粒子效果
+            for (let i = 0; i < 10; i++) {
+                const geo = new THREE.SphereGeometry(0.1, 4, 4);
+                const mat = new THREE.MeshBasicMaterial({ color: color });
+                const particle = new THREE.Mesh(geo, mat);
+                particle.position.copy(position);
+                
+                particle.userData = {
+                    velocity: new THREE.Vector3(
+                        (Math.random() - 0.5) * 0.5,
+                        Math.random() * 0.3,
+                        (Math.random() - 0.5) * 0.5
+                    ),
+                    life: 1
+                };
+                
+                scene.add(particle);
+                particles.push(particle);
+            }
+        }
+        
+        function createHealEffect() {
+            const geo = new THREE.TorusGeometry(1, 0.1, 8, 32);
+            const mat = new THREE.MeshBasicMaterial({ color: 0x00ff88 });
+            const ring = new THREE.Mesh(geo, mat);
+            ring.position.copy(player.position);
+            ring.position.y = 1;
+            ring.rotation.x = Math.PI / 2;
+            
+            scene.add(ring);
+            
+            const startTime = Date.now();
+            const animate = () => {
+                const elapsed = (Date.now() - startTime) / 1000;
+                if (elapsed > 1) {
+                    scene.remove(ring);
+                    return;
+                }
+                ring.scale.set(1 + elapsed, 1 + elapsed, 1);
+                ring.material.opacity = 1 - elapsed;
+                requestAnimationFrame(animate);
+            };
+            animate();
+        }
+        
+        function findNearestEnemy() {
+            let nearest = null;
+            let minDist = Infinity;
+            
+            enemies.forEach(enemy => {
+                const dist = player.position.distanceTo(enemy.mesh.position);
+                if (dist < minDist) {
+                    minDist = dist;
+                    nearest = enemy;
+                }
+            });
+            
+            return nearest;
+        }
+        
+        // ==================== 敌人AI ====================
+        function updateEnemies(deltaTime) {
+            enemies.forEach((enemy, index) => {
+                // 向玩家移动
+                const dir = new THREE.Vector3()
+                    .subVectors(player.position, enemy.mesh.position)
+                    .normalize();
+                
+                enemy.mesh.position.add(dir.multiplyScalar(enemy.speed));
+                enemy.mesh.lookAt(player.position);
+                
+                // 面向玩家
+                enemy.mesh.rotation.y = Math.atan2(
+                    player.position.x - enemy.mesh.position.x,
+                    player.position.z - enemy.mesh.position.z
+                );
+                
+                // 攻击玩家
+                const dist = player.position.distanceTo(enemy.mesh.position);
+                if (dist < 3 && Date.now() - enemy.lastAttack > enemy.attackCooldown) {
+                    attackPlayer(enemy);
+                    enemy.lastAttack = Date.now();
+                }
+            });
+        }
+        
+        function attackPlayer(enemy) {
+            let damage = enemy.attack;
+            if (isDefending) {
+                damage = Math.floor(damage / 2);
+                addLog(`🛡️ 格挡了 ${enemy.name} 的攻击！`, 'heal');
+            }
+            
+            CONFIG.player.hp -= damage;
+            addLog(`💥 ${enemy.name} 攻击了你！-${damage} HP`, 'damage');
+            updatePlayerHUD();
+            
+            // 受伤特效
+            createHitEffect(player.position.clone(), 0xff4757);
+            
+            // 玩家死亡
+            if (CONFIG.player.hp <= 0) {
+                gameOver();
+            }
+        }
+        
+        // ==================== 更新项目 ====================
+        function updateProjectiles() {
+            for (let i = projectiles.length - 1; i >= 0; i--) {
+                const proj = projectiles[i];
+                const target = proj.userData.target;
+                
+                // 飞向目标
+                if (target && enemies.includes(target)) {
+                    const dir = new THREE.Vector3()
+                        .subVectors(target.mesh.position, proj.position)
+                        .normalize();
+                    proj.position.add(dir.multiplyScalar(proj.userData.speed));
+                } else {
+                    // 没有目标，飞向鼠标方向
+                    proj.position.z -= proj.userData.speed;
+                }
+                
+                // 碰撞检测
+                enemies.forEach((enemy, eIndex) => {
+                    if (proj.position.distanceTo(enemy.mesh.position) < 2) {
+                        // 命中
+                        enemy.hp -= proj.userData.damage;
+                        createHitEffect(proj.position.clone(), CONFIG.skills.find(s => s.effect === proj.userData.effect)?.color || 0xff4757);
+                        
+                        addLog(`💥 ${proj.userData.damage} 伤害 -> ${enemy.name}`, 'skill');
+                        
+                        // 死亡
+                        if (enemy.hp <= 0) {
+                            killEnemy(enemy);
+                            enemies.splice(eIndex, 1);
+                        } else {
+                            updateEnemyHUD(enemy);
+                        }
+                        
+                        scene.remove(proj);
+                        projectiles.splice(i, 1);
+                    }
+                });
+                
+                // 移除过远的
+                if (proj.position.distanceTo(player.position) > 100) {
+                    scene.remove(proj);
+                    projectiles.splice(i, 1);
+                }
+            }
+        }
+        
+        function updateParticles() {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.position.add(p.userData.velocity);
+                p.userData.velocity.y -= 0.01;
+                p.userData.life -= 0.02;
+                p.scale.setScalar(p.userData.life);
+                p.material.opacity = p.userData.life;
+                
+                if (p.userData.life <= 0) {
+                    scene.remove(p);
+                    particles.splice(i, 1);
+                }
+            }
+        }
+        
+        function killEnemy(enemy) {
+            CONFIG.player.exp += enemy.exp;
+            addLog(`💀 击败 ${enemy.name}！+${enemy.exp} EXP`, 'skill');
+            
+            // 升级
+            if (CONFIG.player.exp >= 100) {
+                levelUp();
+            }
+            
+            scene.remove(enemy.mesh);
+            enemiesInWave--;
+            
+            // 检查波次完成
+            if (enemiesInWave <= 0) {
+                currentWave++;
+                setTimeout(() => startWave(), 2000);
+            }
+        }
+        
+        function levelUp() {
+            CONFIG.player.exp -= 100;
+            CONFIG.player.maxHp += 20;
+            CONFIG.player.maxMp += 10;
+            CONFIG.player.hp = CONFIG.player.maxHp;
+            CONFIG.player.mp = CONFIG.player.maxMp;
+            CONFIG.player.attack += 5;
+            
+            addLog(`🎉 升级！属性提升！`, 'heal');
+            updatePlayerHUD();
+            
+            // 升级特效
+            const geo = new THREE.SphereGeometry(3, 16, 16);
+            const mat = new THREE.MeshBasicMaterial({ 
+                color: 0xffd700, 
+                transparent: true, 
+                opacity: 0.5 
+            });
+            const ring = new THREE.Mesh(geo, mat);
+            ring.position.copy(player.position);
+            ring.position.y = 2;
+            scene.add(ring);
+            
+            setTimeout(() => scene.remove(ring), 500);
+        }
+        
+        // ==================== 控制 ====================
+        function setupControls() {
+            // 键盘
+            document.addEventListener('keydown', e => {
+                keys[e.key.toLowerCase()] = true;
+                
+                // 数字键技能
+                if (e.key >= '1' && e.key <= '8') {
+                    useSkill(parseInt(e.key) - 1);
+                }
+            });
+            
+            document.addEventListener('keyup', e => {
+                keys[e.key.toLowerCase()] = false;
+            });
+        }
+        
+        function handleMovement() {
+            if (!gameRunning) return;
+            
+            const speed = CONFIG.player.speed;
+            let move = new THREE.Vector3();
+            
+            if (keys['w']) move.z -= speed;
+            if (keys['s']) move.z += speed;
+            if (keys['a']) move.x -= speed;
+            if (keys['d']) move.x += speed;
+            
+            if (move.length() > 0) {
+                player.position.add(move);
+                player.rotation.y = Math.atan2(move.x, move.z);
+            }
+            
+            // 边界限制
+            player.position.x = Math.max(-48, Math.min(48, player.position.x));
+            player.position.z = Math.max(-48, Math.min(48, player.position.z));
+        }
+        
+        // ==================== UI更新 ====================
+        function updatePlayerHUD() {
+            document.getElementById('hp-text').textContent = `${Math.max(0, CONFIG.player.hp)}/${CONFIG.player.maxHp}`;
+            document.getElementById('hp-bar').style.width = `${Math.max(0, CONFIG.player.hp / CONFIG.player.maxHp * 100)}%`;
+            
+            document.getElementById('mp-text').textContent = `${CONFIG.player.mp}/${CONFIG.player.maxMp}`;
+            document.getElementById('mp-bar').style.width = `${CONFIG.player.mp / CONFIG.player.maxMp * 100}%`;
+            
+            document.getElementById('exp-text').textContent = `${CONFIG.player.exp}/100`;
+            document.getElementById('exp-bar').style.width = `${CONFIG.player.exp}%`;
+        }
+        
+        function updateEnemyHUD(enemy) {
+            document.getElementById('enemy-name').textContent = enemy.name;
+            document.getElementById('enemy-hp-bar').style.width = `${enemy.hp / enemy.maxHp * 100}%`;
+        }
+        
+        function startCooldown(index, seconds) {
+            const btn = document.getElementById(`skill-${index}`);
+            btn.classList.add('cooldown');
+            
+            let remaining = seconds;
+            const interval = setInterval(() => {
+                remaining--;
+                if (remaining <= 0) {
+                    clearInterval(interval);
+                    btn.classList.remove('cooldown');
+                    btn.querySelector('.skill-cooldown')?.remove();
+                } else {
+                    // 更新冷却显示
+                    let cdEl = btn.querySelector('.skill-cooldown');
+                    if (!cdEl) {
+                        cdEl = document.createElement('span');
+                        cdEl.className = 'skill-cooldown';
+                        btn.appendChild(cdEl);
+                    }
+                    cdEl.textContent = remaining;
+                }
+            }, 1000);
+        }
+        
+        function addLog(text, type = '') {
+            const log = document.getElementById('combat-log');
+            const item = document.createElement('div');
+            item.className = `log-item ${type}`;
+            item.textContent = `[${new Date().toLocaleTimeString()}] ${text}`;
+            log.insertBefore(item, log.firstChild);
+            
+            // 限制数量
+            while (log.children.length > 20) {
+                log.removeChild(log.lastChild);
+            }
+        }
+        
+        // ==================== 游戏状态 ====================
+        function gameOver() {
+            gameRunning = false;
+            const panel = document.getElementById('game-over');
+            panel.classList.remove('victory');
+            document.getElementById('game-over-text').textContent = '💀 游戏结束';
+            document.getElementById('game-over-stats').innerHTML = `
+                <p style="color: #888; margin-bottom: 10px;">到达波数: ${currentWave + 1}</p>
+                <p style="color: #888;">获得经验: ${CONFIG.player.exp}</p>
+            `;
+            panel.style.display = 'block';
+        }
+        
+        function victory() {
+            gameRunning = false;
+            const panel = document.getElementById('game-over');
+            panel.classList.add('victory');
+            document.getElementById('game-over-text').textContent = '🎉 胜利！';
+            document.getElementById('game-over-stats').innerHTML = `
+                <p style="color: #888; margin-bottom: 10px;">通关波数: ${CONFIG.waves.length}</p>
+                <p style="color: #ffd700; margin-bottom: 10px;">✨ 最终等级: ${Math.floor(CONFIG.player.exp / 100) + 1}</p>
+            `;
+            panel.style.display = 'block';
+        }
+        
+        function restartGame() {
+            // 重置状态
+            CONFIG.player.hp = CONFIG.player.maxHp;
+            CONFIG.player.mp = CONFIG.player.maxMp;
+            CONFIG.player.exp = 0;
+            currentWave = 0;
+            enemiesInWave = 0;
+            gameRunning = true;
+            skillCooldowns = [0, 0, 0, 0, 0, 0, 0, 0];
+            
+            // 清除敌人
+            enemies.forEach(e => scene.remove(e.mesh));
+            enemies = [];
+            
+            // 清除投射物
+            projectiles.forEach(p => scene.remove(p));
+            projectiles = [];
+            
+            // 重置位置
+            player.position.set(0, 0, 30);
+            
+            // 更新UI
+            updatePlayerHUD();
+            document.getElementById('game-over').style.display = 'none';
+            document.getElementById('combat-log').innerHTML = '<div class="log-item">⚔️ 战斗开始！</div>';
+            
+            // 开始新游戏
+            setTimeout(() => startWave(), 2000);
+        }
+        
+        // ==================== 主循环 ====================
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            if (gameRunning) {
+                handleMovement();
+                updateEnemies();
+                updateProjectiles();
+                updateParticles();
+                
+                // 相机跟随
+                camera.position.x = player.position.x * 0.5;
+                camera.position.z = player.position.z + 30;
+                camera.lookAt(player.position.x, 0, player.position.z);
+            }
+            
+            renderer.render(scene, camera);
+        }
+        
+        // ==================== 窗口大小 ====================
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+        
+        // 启动
+        init();
+    </script>
+</body>
+</html>
