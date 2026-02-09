@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎮 Three.js 关卡编辑器 - 物理游戏引擎</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            background: #0f0f23;
+            overflow: hidden;
+        }
+        #game-container {
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        /* 顶部工具栏 */
+        .toolbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            gap: 15px;
+            z-index: 1000;
+            border-bottom: 1px solid rgba(0,255,136,0.3);
+        }
+        .toolbar h1 {
+            font-size: 20px;
+            background: linear-gradient(90deg, #00ff88, #00ccff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .toolbar-btn {
+            padding: 8px 16px;
+            border: 1px solid rgba(255,255,255,0.3);
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.3s;
+        }
+        .toolbar-btn:hover {
+            background: rgba(0,255,136,0.3);
+            border-color: #00ff88;
+        }
+        .toolbar-btn.active {
+            background: linear-gradient(135deg, #00ff88, #00ccff);
+            color: #000;
+            border-color: transparent;
+        }
+        .toolbar-btn.danger {
+            border-color: #ff4757;
+            color: #ff4757;
+        }
+        .toolbar-btn.danger:hover {
+            background: #ff4757;
+            color: #fff;
+        }
+        
+        /* 左侧工具面板 */
+        .left-panel {
+            position: fixed;
+            left: 20px;
+            top: 80px;
+            width: 200px;
+            background: rgba(0,0,0,0.7);
+            border-radius: 12px;
+            padding: 15px;
+            z-index: 100;
+        }
+        .panel-title {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+        .object-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+        .object-btn {
+            aspect-ratio: 1;
+            background: rgba(255,255,255,0.05);
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            transition: all 0.3s;
+        }
+        .object-btn:hover {
+            border-color: #00ff88;
+            background: rgba(0,255,136,0.1);
+            transform: scale(1.05);
+        }
+        .object-btn.selected {
+            border-color: #00ff88;
+            background: rgba(0,255,136,0.2);
+        }
+        .object-btn .label {
+            font-size: 9px;
+            color: #888;
+            margin-top: 4px;
+        }
+        
+        /* 右侧属性面板 */
+        .right-panel {
+            position: fixed;
+            right: 20px;
+            top: 80px;
+            width: 280px;
+            background: rgba(0,0,0,0.7);
+            border-radius: 12px;
+            padding: 15px;
+            z-index: 100;
+        }
+        .property {
+            margin-bottom: 12px;
+        }
+        .property label {
+            display: block;
+            font-size: 11px;
+            color: #888;
+            margin-bottom: 4px;
+        }
+        .property input, .property select {
+            width: 100%;
+            padding: 8px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 4px;
+            color: #fff;
+            font-size: 13px;
+        }
+        .property input:focus {
+            outline: none;
+            border-color: #00ff88;
+        }
+        
+        /* 场景列表 */
+        .scenes-list {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+        .scene-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 4px;
+            margin-bottom: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .scene-item:hover {
+            background: rgba(0,255,136,0.1);
+        }
+        .scene-item.active {
+            background: rgba(0,255,136,0.2);
+            border: 1px solid #00ff88;
+        }
+        .scene-icon {
+            font-size: 16px;
+        }
+        .scene-name {
+            flex: 1;
+            font-size: 12px;
+        }
+        .scene-delete {
+            font-size: 12px;
+            color: #ff4757;
+            cursor: pointer;
+        }
+        
+        /* 底部状态栏 */
+        .status-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 30px;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            gap: 20px;
+            font-size: 11px;
+            color: #888;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .status-value {
+            color: #00ff88;
+        }
+        
+        /* 操作提示 */
+        .tooltip {
+            position: fixed;
+            bottom: 50px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.8);
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 12px;
+            color: #fff;
+            z-index: 1000;
+        }
+        .tooltip kbd {
+            background: rgba(255,255,255,0.2);
+            padding: 2px 6px;
+            border-radius: 3px;
+            margin: 0 2px;
+        }
+        
+        /* 层级 */
+        .layers-panel {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+        .layer-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px;
+            font-size: 12px;
+            color: #ccc;
+            cursor: pointer;
+        }
+        .layer-item:hover {
+            color: #fff;
+        }
+        .layer-item.active {
+            color: #00ff88;
+        }
+        .layer-checkbox {
+            width: 14px;
+            height: 14px;
+            accent-color: #00ff88;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container"></div>
+    
+    <!-- 顶部工具栏 -->
+    <div class="toolbar">
+        <h1>🎮 关卡编辑器</h1>
+        <button class="toolbar-btn active" id="mode-edit" onclick="setMode('edit')">✏️ 编辑</button>
+        <button class="toolbar-btn" id="mode-play" onclick="setMode('play')">▶️ 测试</button>
+        <div style="flex:1"></div>
+        <button class="toolbar-btn" onclick="saveLevel()">💾 保存</button>
+        <button class="toolbar-btn" onclick="loadLevel()">📂 加载</button>
+        <button class="toolbar-btn" onclick="exportLevel()">📤 导出</button>
+        <button class="toolbar-btn danger" onclick="clearLevel()">🗑️ 清空</button>
+    </div>
+    
+    <!-- 左侧工具面板 -->
+    <div class="left-panel">
+        <div class="panel-title">📦 物体库</div>
+        <div class="object-grid">
+            <div class="object-btn selected" data-type="box" onclick="selectObject('box')">
+                📦
+                <span class="label">方块</span>
+            </div>
+            <div class="object-btn" data-type="sphere" onclick="selectObject('sphere')">
+                ⚽
+                <span class="label">球体</span>
+            </div>
+            <div class="object-btn" data-type="ramp" onclick="selectObject('ramp')">
+                📐
+                <span class="label">斜坡</span>
+            </div>
+            <div class="object-btn" data-type="cylinder" onclick="selectObject('cylinder')">
+                🛢️
+                <span class="label">圆柱</span>
+            </div>
+            <div class="object-btn" data-type="wall" onclick="selectObject('wall')">
+                🧱
+                <span class="label">墙壁</span>
+            </div>
+            <div class="object-btn" data-type="platform" onclick="selectObject('platform')">
+                📏
+                <span class="label">平台</span>
+            </div>
+            <div class="object-btn" data-type="goal" onclick="selectObject('goal')">
+                🏆
+                <span class="label">目标</span>
+            </div>
+            <div class="object-btn" data-type="spawn" onclick="selectObject('spawn')">
+                🚀
+                <span class="label">起点</span>
+            </div>
+        </div>
+        
+        <div class="layers-panel">
+            <div class="panel-title">👁️ 图层</div>
+            <div class="layer-item">
+                <input type="checkbox" class="layer-checkbox" checked onchange="toggleLayer('physics')">
+                <span>🔧 物理物体</span>
+            </div>
+            <div class="layer-item">
+                <input type="checkbox" class="layer-checkbox" checked onchange="toggleLayer('goal')">
+                <span>🏆 目标点</span>
+            </div>
+            <div class="layer-item">
+                <input type="checkbox" class="layer-checkbox" checked onchange="toggleLayer('spawn')">
+                <span>🚀 起点</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 右侧属性面板 -->
+    <div class="right-panel">
+        <div class="panel-title">⚙️ 选中物体属性</div>
+        <div id="properties">
+            <div class="property">
+                <label>类型</label>
+                <input type="text" id="prop-type" value="box" disabled>
+            </div>
+            <div class="property">
+                <label>位置 X</label>
+                <input type="number" id="prop-x" value="0" step="0.5" onchange="updateProperty()">
+            </div>
+            <div class="property">
+                <label>位置 Y</label>
+                <input type="number" id="prop-y" value="5" step="0.5" onchange="updateProperty()">
+            </div>
+            <div class="property">
+                <label>位置 Z</label>
+                <input type="number" id="prop-z" value="0" step="0.5" onchange="updateProperty()">
+            </div>
+            <div class="property">
+                <label>旋转 X (度)</label>
+                <input type="number" id="prop-rotx" value="0" step="5" onchange="updateProperty()">
+            </div>
+            <div class="property">
+                <label>旋转 Y (度)</label>
+                <input type="number" id="prop-roty" value="0" step="5" onchange="updateProperty()">
+            </div>
+            <div class="property" id="prop-scale-container">
+                <label>缩放</label>
+                <input type="number" id="prop-scale" value="1" step="0.1" min="0.1" max="10" onchange="updateProperty()">
+            </div>
+            <div class="property">
+                <label>物理质量</label>
+                <input type="number" id="prop-mass" value="1" step="0.5" min="0" onchange="updateProperty()">
+            </div>
+            <div class="property">
+                <label>颜色</label>
+                <input type="color" id="prop-color" value="#00ff88" onchange="updateProperty()">
+            </div>
+            <button class="toolbar-btn danger" style="width:100%; margin-top:10px" onclick="deleteSelected()">🗑️ 删除选中</button>
+        </div>
+        
+        <div class="panel-title" style="margin-top:20px">📂 关卡</div>
+        <div class="scenes-list" id="scenesList">
+            <div class="scene-item active" onclick="loadScene(0)">
+                <span class="scene-icon">🎮</span>
+                <span class="scene-name">当前关卡</span>
+            </div>
+        </div>
+        <button class="toolbar-btn" style="width:100%; margin-top:10px" onclick="createNewScene()">➕ 新建关卡</button>
+    </div>
+    
+    <!-- 底部状态栏 -->
+    <div class="status-bar">
+        <div class="status-item">📍 <span id="cursor-pos" class="status-value">0, 0, 0</span></div>
+        <div class="status-item">📦 <span id="object-count" class="status-value">0</span> 个物体</div>
+        <div class="status-item">📐 <span id="grid-size" class="status-value">10x10</span></div>
+        <div class="status-item">🎮 <span id="mode-display" class="status-value">编辑模式</span></div>
+        <div style="flex:1"></div>
+        <div class="status-item">🖱️ 右键旋转视角 | 滚轮缩放 | 左键放置</div>
+    </div>
+    
+    <!-- 操作提示 -->
+    <div class="tooltip">
+        <kbd>左键</kbd> 放置物体 | <kbd>右键</kbd> 旋转视角 | <kbd>滚轮</kbd> 缩放 | <kbd>Delete</kbd> 删除选中 | <kbd>G</kbd> 切换网格
+    </div>
+
+    <script>
+        // ==================== 全局变量 ====================
+        let scene, camera, renderer;
+        let world; // Cannon.js 物理世界
+        let objects = []; // 场景中的物体
+        let selectedObject = null;
+        let currentMode = 'edit'; // 'edit' 或 'play'
+        let selectedType = 'box';
+        let showGrid = true;
+        
+        // 鼠标控制
+        let isRightMouseDown = false;
+        let mouseX = 0, mouseY = 0;
+        let cameraAngleX = 0.5, cameraAngleY = 0.3;
+        let cameraDistance = 30;
+        
+        // 网格
+        let gridHelper;
+        let raycaster = new THREE.Raycaster();
+        let mouse = new THREE.Vector2();
+        let plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+        
+        // 关卡数据
+        let currentLevel = {
+            name: '未命名关卡',
+            objects: []
+        };
+        let savedLevels = [];
+        
+        // ==================== 初始化 ====================
+        function init() {
+            // Three.js 场景
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x1a1a2e);
+            
+            // 相机
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            updateCamera();
+            
+            // 渲染器
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.getElementById('game-container').appendChild(renderer.domElement);
+            
+            // 光照
+            setupLights();
+            
+            // 地面
+            createGround();
+            
+            // 网格
+            gridHelper = new THREE.GridHelper(50, 50, 0x00ff88, 0x333366);
+            scene.add(gridHelper);
+            
+            // Cannon.js 物理世界
+            world = new CANNON.World();
+            world.gravity.set(0, -20, 0);
+            world.broadphase = new CANNON.NaiveBroadphase();
+            world.solver.iterations = 10;
+            
+            // 事件监听
+            setupEventListeners();
+            
+            // 创建一些示例物体
+            createDemoObjects();
+            
+            // 开始渲染循环
+            animate();
+        }
+        
+        // 设置光照
+        function setupLights() {
+            const ambient = new THREE.AmbientLight(0x404040, 0.5);
+            scene.add(ambient);
+            
+            const directional = new THREE.DirectionalLight(0xffffff, 1);
+            directional.position.set(20, 40, 20);
+            directional.castShadow = true;
+            directional.shadow.mapSize.width = 2048;
+            directional.shadow.mapSize.height = 2048;
+            scene.add(directional);
+            
+            // 添加一些彩色点光源
+            const colors = [0xff0066, 0x00ff88, 0x00ccff];
+            colors.forEach((color, i) => {
+                const light = new THREE.PointLight(color, 0.3, 30);
+                const angle = (i / 3) * Math.PI * 2;
+                light.position.set(Math.cos(angle) * 15, 10, Math.sin(angle) * 15);
+                scene.add(light);
+            });
+        }
+        
+        // 创建地面
+        function createGround() {
+            // Three.js 地面
+            const groundGeo = new THREE.PlaneGeometry(50, 50);
+            const groundMat = new THREE.MeshStandardMaterial({ 
+                color: 0x2d2d44, 
+                roughness: 0.8,
+                metalness: 0.2
+            });
+            const ground = new THREE.Mesh(groundGeo, groundMat);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            ground.userData.isGround = true;
+            scene.add(ground);
+            
+            // Cannon.js 地面
+            const groundShape = new CANNON.Plane();
+            const groundBody = new CANNON.Body({ mass: 0 });
+            groundBody.addShape(groundShape);
+            groundBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
+            world.addBody(groundBody);
+        }
+        
+        // 创建示例物体
+        function createDemoObjects() {
+            addObject('box', 0, 3, 0, 1, '#00ff88', 1, 0, 0);
+            addObject('sphere', 5, 3, 0, 0.8, '#ff0066', 1, 0, 0);
+            addObject('ramp', -5, 1, 0, 1, '#00ccff', 1, 0, 30);
+            addObject('platform', 0, 6, -8, 1, '#ffd700', 0, 0, 0);
+            addObject('goal', 0, 1, -15, 1, '#ff4757', 0, 0, 0);
+            updateObjectCount();
+        }
+        
+        // ==================== 物体管理 ====================
+        const objectConfigs = {
+            box: { icon: '📦', createGeometry: (s) => new THREE.BoxGeometry(s, s, s) },
+            sphere: { icon: '⚽', createGeometry: (s) => new THREE.SphereGeometry(s * 0.5, 32, 32) },
+            cylinder: { icon: '🛢️', createGeometry: (s) => new THREE.CylinderGeometry(s * 0.4, s * 0.4, s, 32) },
+            wall: { icon: '🧱', createGeometry: (s) => new THREE.BoxGeometry(s * 2, s, s * 0.5) },
+            platform: { icon: '📏', createGeometry: (s) => new THREE.BoxGeometry(s * 3, s * 0.2, s) },
+            goal: { icon: '🏆', createGeometry: (s) => new THREE.TorusGeometry(s * 0.4, s * 0.1, 16, 32) },
+            spawn: { icon: '🚀', createGeometry: (s) => new THREE.ConeGeometry(s * 0.3, s * 0.8, 32) },
+            ramp: { icon: '📐', createGeometry: (s) => {
+                const shape = new THREE.Shape();
+                shape.moveTo(0, 0);
+                shape.lineTo(s, 0);
+                shape.lineTo(0, s * 0.5);
+                shape.lineTo(0, 0);
+                const extrudeSettings = { depth: s, bevelEnabled: false };
+                return new THREE.ExtrudeGeometry(shape, extrudeSettings);
+            }}
+        };
+        
+        function addObject(type, x, y, z, scale = 1, color = '#00ff88', mass = 1, rotX = 0, rotY = 0) {
+            const config = objectConfigs[type];
+            if (!config) return;
+            
+            // 创建 Three.js 物体
+            const geometry = config.createGeometry(scale);
+            const material = new THREE.MeshStandardMaterial({
+                color: color,
+                roughness: 0.4,
+                metalness: 0.3,
+                transparent: type === 'goal' || type === 'spawn',
+                opacity: type === 'goal' || type === 'spawn' ? 0.8 : 1
+            });
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.position.set(x, y, z);
+            mesh.rotation.x = rotX * Math.PI / 180;
+            mesh.rotation.y = rotY * Math.PI / 180;
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            mesh.userData = {
+                type: type,
+                scale: scale,
+                color: color,
+                mass: mass,
+                rotX: rotX,
+                rotY: rotY,
+                isGoal: type === 'goal',
+                isSpawn: type === 'spawn'
+            };
+            scene.add(mesh);
+            
+            // 创建 Cannon.js 刚体
+            let shape;
+            const halfExtents = new CANNON.Vec3(scale/2, scale/2, scale/2);
+            
+            if (type === 'box' || type === 'wall' || type === 'platform') {
+                shape = new CANNON.Box(new CANNON.Vec3(
+                    (type === 'wall' ? scale : scale * (type === 'platform' ? 1.5 : 0.5)),
+                    scale * 0.5,
+                    (type === 'wall' ? scale * 0.25 : scale * 0.5)
+                ));
+            } else if (type === 'sphere') {
+                shape = new CANNON.Sphere(scale * 0.5);
+            } else if (type === 'cylinder') {
+                shape = new CANNON.Cylinder(scale * 0.4, scale * 0.4, scale, 16);
+            } else if (type === 'ramp') {
+                shape = new CANNON.Box(new CANNON.Vec3(scale/2, scale/2, scale/2));
+            } else {
+                shape = new CANNON.Sphere(scale * 0.3);
+            }
+            
+            const body = new CANNON.Body({
+                mass: mass,
+                position: new CANNON.Vec3(x, y, z)
+            });
+            
+            if (mass > 0) {
+                body.addShape(shape);
+            }
+            
+            body.quaternion.setFromEuler(rotX * Math.PI / 180, rotY * Math.PI / 180, 0);
+            body.linearDamping = 0.1;
+            body.angularDamping = 0.1;
+            
+            if (mass > 0) {
+                world.addBody(body);
+            }
+            
+            const obj = { mesh, body, type, mass };
+            objects.push(obj);
+            
+            return obj;
+        }
+        
+        function deleteObject(obj) {
+            scene.remove(obj.mesh);
+            if (obj.body && obj.mass > 0) {
+                world.removeBody(obj.body);
+            }
+            objects = objects.filter(o => o !== obj);
+            if (selectedObject === obj) {
+                selectedObject = null;
+                updatePropertyPanel();
+            }
+            updateObjectCount();
+        }
+        
+        function deleteSelected() {
+            if (selectedObject) {
+                deleteObject(selectedObject);
+            }
+        }
+        
+        function clearLevel() {
+            if (confirm('确定要清空所有物体吗？')) {
+                [...objects].forEach(obj => deleteObject(obj));
+                currentLevel.objects = [];
+            }
+        }
+        
+        // ==================== 选择和属性 ====================
+        function selectObject(type) {
+            selectedType = type;
+            document.querySelectorAll('.object-btn').forEach(btn => {
+                btn.classList.toggle('selected', btn.dataset.type === type);
+            });
+        }
+        
+        function selectObjectByMesh(mesh) {
+            selectedObject = objects.find(o => o.mesh === mesh);
+            updatePropertyPanel();
+        }
+        
+        function updatePropertyPanel() {
+            if (!selectedObject) {
+                document.getElementById('prop-type').value = '-';
+                return;
+            }
+            
+            const data = selectedObject.mesh.userData;
+            document.getElementById('prop-type').value = data.type;
+            document.getElementById('prop-x').value = selectedObject.mesh.position.x.toFixed(2);
+            document.getElementById('prop-y').value = selectedObject.mesh.position.y.toFixed(2);
+            document.getElementById('prop-z').value = selectedObject.mesh.position.z.toFixed(2);
+            document.getElementById('prop-rotx').value = data.rotX;
+            document.getElementById('prop-roty').value = data.rotY;
+            document.getElementById('prop-scale').value = data.scale;
+            document.getElementById('prop-mass').value = data.mass;
+            document.getElementById('prop-color').value = data.color;
+        }
+        
+        function updateProperty() {
+            if (!selectedObject) return;
+            
+            const x = parseFloat(document.getElementById('prop-x').value);
+            const y = parseFloat(document.getElementById('prop-y').value);
+            const z = parseFloat(document.getElementById('prop-z').value);
+            const rotX = parseFloat(document.getElementById('prop-rotx').value);
+            const rotY = parseFloat(document.getElementById('prop-roty').value);
+            const scale = parseFloat(document.getElementById('prop-scale').value);
+            const mass = parseFloat(document.getElementById('prop-mass').value);
+            const color = document.getElementById('prop-color').value;
+            
+            selectedObject.mesh.position.set(x, y, z);
+            selectedObject.mesh.rotation.x = rotX * Math.PI / 180;
+            selectedObject.mesh.rotation.y = rotY * Math.PI / 180;
+            selectedObject.mesh.userData.scale = scale;
+            selectedObject.mesh.userData.color = color;
+            
+            if (selectedObject.body && selectedObject.body.mass > 0) {
+                selectedObject.body.position.set(x, y, z);
+                selectedObject.body.quaternion.setFromEuler(
+                    rotX * Math.PI / 180,
+                    rotY * Math.PI / 180,
+                    0
+                );
+            }
+            
+            // 更新颜色
+            selectedObject.mesh.material.color.set(color);
+            
+            // 缩放（重新创建）
+            if (scale !== selectedObject.mesh.userData.scale) {
+                const config = objectConfigs[selectedObject.type];
+                if (config) {
+                    selectedObject.mesh.geometry = config.createGeometry(scale);
+                    selectedObject.mesh.userData.scale = scale;
+                }
+            }
+            
+            // 质量
+            if (selectedObject.body && selectedObject.body.mass !== mass) {
+                selectedObject.body.mass = mass;
+                selectedObject.body.updateMassProperties();
+            }
+        }
+        
+        // ==================== 模式切换 ====================
+        function setMode(mode) {
+            currentMode = mode;
+            document.getElementById('mode-edit').classList.toggle('active', mode === 'edit');
+            document.getElementById('mode-play').classList.toggle('active', mode === 'play');
+            document.getElementById('mode-display').textContent = mode === 'edit' ? '编辑模式' : '测试模式';
+            
+            if (mode === 'play') {
+                // 重置物理物体位置
+                objects.forEach(obj => {
+                    if (obj.body && obj.mass > 0) {
+                        obj.body.position.copy(obj.mesh.position);
+                        obj.body.velocity.set(0, 0, 0);
+                        obj.body.angularVelocity.set(0, 0, 0);
+                        obj.body.quaternion.copy(obj.mesh.quaternion);
+                    }
+                });
+            }
+        }
+        
+        // ==================== 相机控制 ====================
+        function updateCamera() {
+            camera.position.x = Math.sin(cameraAngleX) * Math.cos(cameraAngleY) * cameraDistance;
+            camera.position.y = Math.sin(cameraAngleY) * cameraDistance + 5;
+            camera.position.z = Math.cos(cameraAngleX) * Math.cos(cameraAngleY) * cameraDistance;
+            camera.lookAt(0, 3, 0);
+        }
+        
+        // ==================== 保存/加载 ====================
+        function saveLevel() {
+            const levelData = {
+                name: `关卡 ${savedLevels.length + 1}`,
+                objects: objects.map(obj => ({
+                    type: obj.type,
+                    x: obj.mesh.position.x,
+                    y: obj.mesh.position.y,
+                    z: obj.mesh.position.z,
+                    scale: obj.mesh.userData.scale,
+                    color: obj.mesh.userData.color,
+                    mass: obj.mesh.userData.mass,
+                    rotX: obj.mesh.userData.rotX,
+                    rotY: obj.mesh.userData.rotY
+                }))
+            };
+            savedLevels.push(levelData);
+            renderScenesList();
+            alert('关卡已保存！');
+        }
+        
+        function loadLevel() {
+            if (savedLevels.length === 0) {
+                alert('没有保存的关卡！');
+                return;
+            }
+            
+            const index = prompt(`输入关卡编号 (1-${savedLevels.length}):`);
+            if (index && index >= 1 && index <= savedLevels.length) {
+                loadLevelData(savedLevels[index - 1]);
+            }
+        }
+        
+        function loadLevelData(data) {
+            // 清空当前物体
+            [...objects].forEach(obj => deleteObject(obj));
+            
+            // 加载新关卡
+            data.objects.forEach(objData => {
+                addObject(
+                    objData.type,
+                    objData.x,
+                    objData.y,
+                    objData.z,
+                    objData.scale,
+                    objData.color,
+                    objData.mass,
+                    objData.rotX,
+                    objData.rotY
+                );
+            });
+            
+            currentLevel = data;
+            updateObjectCount();
+        }
+        
+        function exportLevel() {
+            const levelData = {
+                name: currentLevel.name || '导出关卡',
+                exportDate: new Date().toISOString(),
+                objects: objects.map(obj => ({
+                    type: obj.type,
+                    x: parseFloat(obj.mesh.position.x.toFixed(2)),
+                    y: parseFloat(obj.mesh.position.y.toFixed(2)),
+                    z: parseFloat(obj.mesh.position.z.toFixed(2)),
+                    scale: parseFloat(obj.mesh.userData.scale.toFixed(2)),
+                    color: obj.mesh.userData.color,
+                    mass: parseFloat(obj.mesh.userData.mass.toFixed(2)),
+                    rotX: parseFloat(obj.mesh.userData.rotX.toFixed(1)),
+                    rotY: parseFloat(obj.mesh.userData.rotY.toFixed(1))
+                }))
+            };
+            
+            const blob = new Blob([JSON.stringify(levelData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `level-${Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        function createNewScene() {
+            const name = prompt('输入新关卡名称:');
+            if (name) {
+                [...objects].forEach(obj => deleteObject(obj));
+                currentLevel = { name, objects: [] };
+                renderScenesList();
+            }
+        }
+        
+        function renderScenesList() {
+            const list = document.getElementById('scenesList');
+            let html = savedLevels.map((level, i) => `
+                <div class="scene-item" onclick="loadLevelData(savedLevels[${i}])">
+                    <span class="scene-icon">🎮</span>
+                    <span class="scene-name">${level.name}</span>
+                    <span class="scene-delete" onclick="event.stopPropagation(); deleteLevel(${i})">×</span>
+                </div>
+            `).join('');
+            
+            if (savedLevels.length === 0) {
+                html = '<div style="color:#666; font-size:12px; text-align:center; padding:20px;">暂无保存的关卡</div>';
+            }
+            
+            list.innerHTML = html;
+        }
+        
+        function deleteLevel(index) {
+            if (confirm('删除此关卡？')) {
+                savedLevels.splice(index, 1);
+                renderScenesList();
+            }
+        }
+        
+        // ==================== 图层控制 ====================
+        function toggleLayer(layer) {
+            objects.forEach(obj => {
+                const isGoal = obj.mesh.userData.isGoal;
+                const isSpawn = obj.mesh.userData.isSpawn;
+                
+                if (layer === 'goal' && isGoal) {
+                    obj.mesh.visible = !obj.mesh.visible;
+                } else if (layer === 'spawn' && isSpawn) {
+                    obj.mesh.visible = !obj.mesh.visible;
+                }
+            });
+        }
+        
+        // ==================== 事件监听 ====================
+        function setupEventListeners() {
+            const container = document.getElementById('game-container');
+            
+            // 鼠标按下
+            container.addEventListener('mousedown', (e) => {
+                if (e.button === 2) {
+                    isRightMouseDown = true;
+                } else if (e.button === 0 && currentMode === 'edit') {
+                    // 放置物体
+                    if (e.target === container) {
+                        placeObject(e);
+                    }
+                }
+            });
+            
+            // 鼠标移动
+            container.addEventListener('mousemove', (e) => {
+                mouseX = (e.clientX / window.innerWidth) * 2 - 1;
+                mouseY = -(e.clientY / window.innerHeight) * 2 + 1;
+                
+                if (isRightMouseDown) {
+                    cameraAngleX += e.movementX * 0.01;
+                    cameraAngleY = Math.max(0.1, Math.min(1.4, cameraAngleY + e.movementY * 0.01));
+                    updateCamera();
+                }
+                
+                // 更新光标位置显示
+                updateCursorPosition();
+            });
+            
+            // 鼠标释放
+            container.addEventListener('mouseup', () => {
+                isRightMouseDown = false;
+            });
+            
+            // 滚轮缩放
+            container.addEventListener('wheel', (e) => {
+                cameraDistance = Math.max(5, Math.min(100, cameraDistance + e.deltaY * 0.05));
+                updateCamera();
+            });
+            
+            // 点击选择物体
+            container.addEventListener('click', (e) => {
+                if (currentMode !== 'edit') return;
+                
+                raycaster.setFromCamera(mouse, camera);
+                const intersects = raycaster.intersectObjects(objects.map(o => o.mesh));
+                
+                if (intersects.length > 0) {
+                    selectObjectByMesh(intersects[0].object);
+                } else {
+                    selectedObject = null;
+                    updatePropertyPanel();
+                }
+            });
+            
+            // 键盘事件
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Delete' || e.key === 'Backspace') {
+                    deleteSelected();
+                } else if (e.key === 'g' || e.key === 'G') {
+                    showGrid = !showGrid;
+                    gridHelper.visible = showGrid;
+                } else if (e.key === 's' && e.ctrlKey) {
+                    saveLevel();
+                }
+            });
+            
+            // 窗口大小变化
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+            
+            // 禁用右键菜单
+            container.addEventListener('contextmenu', (e) => e.preventDefault());
+        }
+        
+        function placeObject(e) {
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObject(gridHelper);
+            
+            if (intersects.length > 0) {
+                const point = intersects[0].point;
+                const snapSize = 1;
+                const x = Math.round(point.x / snapSize) * snapSize;
+                const z = Math.round(point.z / snapSize) * snapSize;
+                const y = selectedType === 'ramp' || selectedType === 'platform' ? 0.5 : 3;
+                
+                addObject(selectedType, x, y, z, 1, '#' + Math.random().toString(16).substr(2, 6), 1, 0, 0);
+                updateObjectCount();
+            }
+        }
+        
+        function updateCursorPosition() {
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObject(gridHelper);
+            
+            if (intersects.length > 0) {
+                const p = intersects[0].point;
+                document.getElementById('cursor-pos').textContent = 
+                    `${p.x.toFixed(1)}, ${p.y.toFixed(1)}, ${p.z.toFixed(1)}`;
+            }
+        }
+        
+        function updateObjectCount() {
+            document.getElementById('object-count').textContent = objects.length;
+        }
+        
+        // ==================== 动画循环 ====================
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // 物理模拟
+            if (currentMode === 'play') {
+                world.step(1/60);
+                
+                // 同步物理到渲染
+                objects.forEach(obj => {
+                    if (obj.body && obj.mass > 0) {
+                        obj.mesh.position.copy(obj.body.position);
+                        obj.mesh.quaternion.copy(obj.body.quaternion);
+                    }
+                });
+            }
+            
+            renderer.render(scene, camera);
+        }
+        
+        // 启动
+        init();
+    </script>
+</body>
+</html>
