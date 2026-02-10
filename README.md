@@ -1,7 +1,49 @@
-# 🎮 OpenClaw Evolution Registry
-### 基因进化系统 - 让 AI 越来越强
+# 🎮 ThreeJSEvolution
+### AI游戏引擎 - 为AI Agent打造的3D游戏开发框架
 
-> **核心理念**: 代码即基因，Git即族谱
+> **核心理念**: 让AI Agent能快速构建有趣的游戏
+
+## 🎯 v2.2 更新：AI敌人系统 (2026-02-10)
+
+**新增功能**:
+- **Enemy 类**: 智能敌人AI（近战、远程、BOSS）
+- **状态机**: IDLE → PATROL → CHASE → ATTACK → FLEE → DEAD
+- **敌人生成器**: EnemySpawner 支持批量生成敌人波次
+- **血条系统**: 实时血量显示
+- **受伤反馈**: 闪烁效果和伤害数值
+
+**敌人类型**:
+| 类型 | 颜色 | 特点 |
+|------|------|------|
+| 近战 | 橙色 | 主动接近玩家，近距离攻击 |
+| 远程 | 红色 | 发射投射物，远程消耗 |
+| BOSS | 紫色 | 高血量，高伤害，大范围检测 |
+
+**AI行为**:
+- 巡逻模式：按预设路径移动
+- 追逐模式：检测到玩家后紧追不舍
+- 攻击模式：接近后造成伤害
+- 逃亡模式（可选）：血量低时逃跑
+
+## 📁 项目结构
+
+```
+ThreeJSEvolution/
+├── index.html           # 核心演示
+├── physics-demo.html    # 物理引擎演示
+├── combat-demo.html     # 战斗系统演示
+├── enemy-demo.html      # AI敌人系统演示 ✨NEW
+├── level-editor.html    # 关卡编辑器
+├── platform-game.html   # 平台跳跃游戏
+└── src/
+    ├── GameEngine.js    # 核心引擎
+    ├── PhysicsWorld.js  # 物理引擎
+    ├── AnimationSystem.js # 动画系统
+    ├── ParticleSystem.js # 粒子系统
+    ├── Sound/           # 音效系统 (v2.1)
+    └── AI/
+        └── Enemy.js     # AI敌人系统 ✨NEW
+```
 
 ## 🧬 什么是进化系统？
 
@@ -76,23 +118,102 @@ python3 scripts/evolution_tracker.py tree
 }
 ```
 
-## 🎯 当前目标: Three.js 游戏
+## 🚀 快速开始
 
-### 进化路线图
+### 1. 运行AI敌人演示
+```bash
+cd ThreeJSEvolution
+python3 -m http.server 8080
+# 打开浏览器访问 http://localhost:8080/enemy-demo.html
+```
 
-| 阶段 | 版本 | 能力 | 状态 |
-|------|------|------|------|
-| G1 | v1_base | 基础场景、简单几何体 | ✅ 完成 |
-| G2 | v1_opt | 鼠标交互控制 | ⏳ 待开发 |
-| G3 | v2_phys | 物理引擎 (Cannon.js) | 📋 计划中 |
-| G4 | v2_light | 高级光照系统 | 📋 计划中 |
-| G5 | v3_full | 完整 3D 冒险游戏 | 🎯 目标 |
+### 2. 创建自定义敌人
+```javascript
+import { Enemy, EnemySpawner } from './src/AI/Enemy.js';
 
-## 📊 性能指标
+// 创建敌人
+const enemy = new Enemy({
+    type: 'melee',           // 近战/远程/boss
+    health: 100,             // 生命值
+    speed: 3,                // 移动速度
+    damage: 10,              // 攻击力
+    detectionRange: 15,     // 检测范围
+    attackRange: 2          // 攻击范围
+});
 
-- **初始**: 60 FPS, 120 行代码, 基础渲染
-- **当前最佳**: 待测量
-- **目标**: 60 FPS, 1000+ 行, 完整游戏
+// 添加巡逻路径
+enemy.addPatrolPoint(new THREE.Vector3(0, 1, 0));
+enemy.addPatrolPoint(new THREE.Vector3(10, 1, 0));
+
+// 设置追踪目标
+enemy.setTarget(player);
+
+// 敌人生成器
+const spawner = new EnemySpawner(scene);
+
+// 生成敌人波次
+spawner.spawnWave({
+    melee: 3,    // 近战敌人数量
+    ranged: 2,   // 远程敌人数量
+    boss: true   // 是否包含BOSS
+});
+```
+
+### 3. 游戏循环中更新
+```javascript
+const gameState = {
+    player: player,
+    projectiles: projectiles
+};
+
+// 每帧更新敌人AI
+spawner.enemies.forEach(enemy => {
+    enemy.setTarget(gameState.player);
+    enemy.update(deltaTime, gameState);
+});
+```
+
+## 🎮 功能特性
+
+### 核心引擎
+- ✅ 3D场景渲染
+- ✅ 物理碰撞系统
+- ✅ 角色控制器
+- ✅ 动画系统
+- ✅ 粒子特效
+- ✅ 音效系统
+
+### AI系统
+- ✅ 敌人AI状态机
+- ✅ 巡逻/追逐/攻击行为
+- ✅ 远程射击机制
+- ✅ BOSS战支持
+- ✅ 血条显示
+- ✅ 受伤反馈
+
+### 工具系统
+- ✅ 关卡编辑器
+- ✅ 存档系统
+- ✅ 游戏模板生成器
+
+## 📊 代码统计
+
+| 模块 | 代码行数 | 状态 |
+|------|----------|------|
+| 核心引擎 | 1000+ | ✅ 稳定 |
+| 物理系统 | 500+ | ✅ 稳定 |
+| 动画系统 | 300+ | ✅ 稳定 |
+| 粒子系统 | 400+ | ✅ 稳定 |
+| 音效系统 | 200+ | ✅ 稳定 |
+| AI敌人系统 | 500+ | ✨ 新增 |
+
+## 🎯 计划功能
+
+- [ ] AI敌人寻路 (A* Pathfinding)
+- [ ] 群体AI行为 (Flocking)
+- [ ] 玩家技能系统
+- [ ] 关卡目标与任务
+- [ ] 网络同步支持
 
 ## 🛠️ 参与进化
 
