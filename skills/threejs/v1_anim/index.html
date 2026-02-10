@@ -239,8 +239,8 @@
         function createCharacter() {
             const group = new THREE.Group();
             
-            // 身体
-            const bodyGeo = new THREE.CapsuleGeometry(0.4, 1, 8, 16);
+            // 身体 - 使用圆柱体代替（0.128版本不支持CapsuleGeometry）
+            const bodyGeo = new THREE.CylinderGeometry(0.35, 0.35, 1.2, 16);
             const bodyMat = new THREE.MeshStandardMaterial({ color: 0x00ccff, roughness: 0.3 });
             const body = new THREE.Mesh(bodyGeo, bodyMat);
             body.position.y = 0.7;
