@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎮 Three.js 简单测试</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #0a0a1a;
+            overflow: hidden;
+        }
+        canvas { display: block; }
+        #info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            background: rgba(0,0,0,0.85);
+            padding: 20px;
+            border-radius: 12px;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">
+        <h3>🎮 Three.js 测试</h3>
+        <p id="status">加载中...</p>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+    <script>
+        console.log('🚀 开始测试Three.js...');
+        
+        try {
+            // 场景
+            const scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0a1a);
+            console.log('✅ 场景创建成功');
+
+            // 相机
+            const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 2, 5);
+            camera.lookAt(0, 0, 0);
+            console.log('✅ 相机创建成功');
+
+            // 渲染器
+            const renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+            console.log('✅ 渲染器创建成功');
+
+            // 光照
+            const ambient = new THREE.AmbientLight(0x404040, 0.6);
+            scene.add(ambient);
+            const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+            dirLight.position.set(5, 10, 5);
+            scene.add(dirLight);
+            console.log('✅ 光照创建成功');
+
+            // 创建方块
+            const geometry = new THREE.BoxGeometry(1, 1, 1);
+            const material = new THREE.MeshStandardMaterial({ color: 0x00ccff });
+            const cube = new THREE.Mesh(geometry, material);
+            scene.add(cube);
+            console.log('✅ 方块创建成功');
+
+            // 动画循环
+            function animate() {
+                requestAnimationFrame(animate);
+                cube.rotation.x += 0.01;
+                cube.rotation.y += 0.01;
+                renderer.render(scene, camera);
+            }
+            animate();
+            console.log('✅ 动画循环启动');
+
+            document.getElementById('status').innerHTML = '✅ Three.js 正常运行!<br>方块正在旋转...';
+            
+        } catch (error) {
+            console.error('❌ 错误:', error.message);
+            document.getElementById('status').innerHTML = '❌ 错误: ' + error.message;
+        }
+
+        // 窗口调整
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
